@@ -1,5 +1,8 @@
 import FalakElement from '../base.js';
 
+/** The platform default brand set every tenant's gateway carries. */
+const DEFAULT_BRANDS = ['mada', 'visa', 'apple_pay', 'google_pay'];
+
 /**
  * <falak-payments>                                every enabled method
  * <falak-payments exclude='["cash_on_delivery"]'> minus some
@@ -19,19 +22,28 @@ import FalakElement from '../base.js';
 export default class FalakPayments extends FalakElement {
     static observedAttributes = ['exclude', 'methods'];
 
-    /** Gateways that front multiple card networks, expanded for display. */
+    /**
+     * Gateways that front card networks, expanded for display.
+     *
+     * The brand set behind every online gateway is the PLATFORM default —
+     * Apple Pay, Google Pay, Visa, Mada — because that is what every tenant
+     * gets by default. Which logos actually render is still decided by the
+     * tenant's own enabled payment_methods rows: no active gateway, no
+     * card logos.
+     */
     static GATEWAY_BRANDS = {
-        tap: ['mada', 'visa', 'mastercard', 'apple_pay'],
-        noon: ['mada', 'visa', 'mastercard'],
-        moyasar: ['mada', 'visa', 'mastercard', 'apple_pay'],
-        paytabs: ['mada', 'visa', 'mastercard'],
-        hyperpay: ['mada', 'visa', 'mastercard'],
-        checkout: ['visa', 'mastercard'],
+        tap: DEFAULT_BRANDS,
+        noon: DEFAULT_BRANDS,
+        moyasar: DEFAULT_BRANDS,
+        paytabs: DEFAULT_BRANDS,
+        hyperpay: DEFAULT_BRANDS,
+        checkout: DEFAULT_BRANDS,
     };
 
     /** Display order. Anything unlisted sorts last but is still shown. */
     static ORDER = [
         'mada', 'visa', 'mastercard', 'amex', 'apple_pay', 'stcpay',
+        'google_pay',
         'tabby', 'tamara', 'madfu', 'mispay', 'emkan',
         'cash_on_delivery', 'bank_transfer',
     ];
@@ -100,17 +112,45 @@ export default class FalakPayments extends FalakElement {
             </ul>`;
     }
 
-    /** A merchant-uploaded logo wins; then a known mark; then the name. */
+    /**
+     * A merchant-uploaded logo wins; then the platform's real brand image;
+     * then the inline SVG mark; then the name.
+     *
+     * The platform images are the same files the legacy storefront's footer
+     * serves — moved to a stable same-origin path, Salla-style
+     * (`paymentLogo(slug)` against a known-logos list). Same origin means no
+     * CSP widening, and the SVG marks stay as the fallback for any method
+     * without artwork.
+     */
     markFor(method) {
         if (method.logo) {
             return `<img class="f-payments__logo" src="${this.escape(method.logo)}"
                          alt="${this.escape(method.name)}" loading="lazy" decoding="async">`;
         }
 
+        const file = FalakPayments.PLATFORM_LOGOS[method.code];
+
+        if (file) {
+            return `<img class="f-payments__logo" src="/images/payments/${file}"
+                         alt="${this.escape(method.name)}" width="48" height="30"
+                         loading="lazy" decoding="async">`;
+        }
+
         return MARKS[method.code]
             || `<span class="f-payments__label">${this.escape(method.name)}</span>`;
     }
 }
+
+/** Brands with real artwork under public/images/payments/. */
+FalakPayments.PLATFORM_LOGOS = {
+    visa: 'visa.png',
+    mastercard: 'mastercard.png',
+    apple_pay: 'apple_pay.png',
+    google_pay: 'google_pay.svg',
+    mada: 'mada.png',
+    tamara: 'tamara.png',
+    tabby: 'tabby.svg',
+};
 
 /** Codes arrive in several spellings (`cod`, `cash-on-delivery`); fold them. */
 function normalise(value) {
@@ -120,6 +160,8 @@ function normalise(value) {
         cod: 'cash_on_delivery',
         cashondelivery: 'cash_on_delivery',
         applepay: 'apple_pay',
+        googlepay: 'google_pay',
+        google: 'google_pay',
         stc_pay: 'stcpay',
         master: 'mastercard',
         bank: 'bank_transfer',
@@ -128,7 +170,7 @@ function normalise(value) {
 
 const LABELS = {
     mada: 'مدى', visa: 'Visa', mastercard: 'Mastercard', amex: 'Amex',
-    apple_pay: 'Apple Pay', stcpay: 'stc pay', tabby: 'Tabby', tamara: 'Tamara',
+    apple_pay: 'Apple Pay', google_pay: 'Google Pay', stcpay: 'stc pay', tabby: 'Tabby', tamara: 'Tamara',
     madfu: 'Madfu', mispay: 'MisPay', emkan: 'Emkan',
     cash_on_delivery: 'Cash on delivery', bank_transfer: 'Bank transfer',
 };

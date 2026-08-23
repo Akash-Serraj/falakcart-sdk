@@ -501,6 +501,13 @@ body.f-modal-open { overflow: hidden; }
     color: var(--f-text-soft);
 }
 
+.f-payments__logo {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: contain;
+    padding: 0.15rem 0.3rem;
+}
+
 .f-payments__label {
     font-size: 0.55rem;
     font-weight: 700;
