@@ -1,0 +1,597 @@
+/*
+    Storefront chrome — button, modal, slider, menu, breadcrumb and the footer
+    trust row.
+
+    Split from components.css only for file size; both are imported by the entry
+    and Vite's library mode concatenates them into one extracted
+    falak-components.css. Same rules apply: derive from the theme's brand
+    tokens, logical properties throughout so RTL needs no second stylesheet.
+*/
+
+/* ========================================================================
+   Button
+   ======================================================================== */
+
+.f-btn-wrap { display: inline-block; }
+falak-button[width="wide"],
+falak-button[width="wide"] .f-btn-wrap { display: block; inline-size: 100%; }
+.f-btn__link { display: block; text-decoration: none; }
+
+.f-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding-inline: 1.25rem;
+    min-block-size: 2.75rem;
+    border: 1px solid transparent;
+    border-radius: var(--f-radius);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease, opacity 0.16s ease;
+}
+
+.f-btn:focus-visible { outline: 2px solid var(--color-primary, #1d9e75); outline-offset: 2px; }
+.f-btn:hover:not(:disabled) { opacity: 0.88; }
+.f-btn:disabled,
+.f-btn--disabled { opacity: 0.5; cursor: not-allowed; }
+
+.f-btn--primary { background: var(--color-primary, #1d9e75); color: var(--color-on-primary, #fff); }
+.f-btn--light { background: rgba(0, 0, 0, 0.05); color: var(--f-text); }
+.f-btn--danger { background: var(--f-danger); color: #fff; }
+
+.f-btn--primary-outline { background: transparent; border-color: var(--color-primary, #1d9e75); color: var(--color-primary, #1d9e75); }
+.f-btn--light-outline { background: transparent; border-color: var(--f-border); color: var(--f-text); }
+.f-btn--danger-outline { background: transparent; border-color: var(--f-danger); color: var(--f-danger); }
+.f-btn--fill-none { background: transparent; color: var(--f-text); }
+
+.f-btn--primary-link,
+.f-btn--light-link {
+    background: none;
+    border: 0;
+    padding-inline: 0;
+    min-block-size: auto;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.f-btn--primary-link { color: var(--color-primary, #1d9e75); }
+
+.f-btn--icon { inline-size: 2.5rem; min-block-size: 2.5rem; padding: 0; border-radius: 50%; }
+.f-btn--small { min-block-size: 2.15rem; padding-inline: 0.85rem; font-size: 0.8rem; }
+.f-btn--large { min-block-size: 3.15rem; padding-inline: 1.75rem; font-size: 1rem; }
+.f-btn--wide { inline-size: 100%; }
+
+.f-btn__text { display: inline-flex; align-items: center; gap: 0.4rem; }
+.f-btn__text--hidden { visibility: hidden; }
+
+.f-btn__loader {
+    inline-size: 1rem;
+    block-size: 1rem;
+    border: 2px solid currentColor;
+    border-block-start-color: transparent;
+    border-radius: 50%;
+    animation: f-spin 0.7s linear infinite;
+}
+
+.f-btn--loader-center .f-btn__loader {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    margin-block-start: -0.5rem;
+    margin-inline-start: -0.5rem;
+}
+
+.f-btn--loader-before { flex-direction: row-reverse; }
+
+@keyframes f-spin { to { transform: rotate(360deg); } }
+
+/* ========================================================================
+   Modal
+   ======================================================================== */
+
+.f-modal { position: fixed; inset: 0; z-index: 1000; display: none; }
+.f-modal[data-visible="true"] { display: block; }
+body.f-modal-open { overflow: hidden; }
+
+.f-modal__overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 14, 12, 0.55);
+    animation: f-fade 0.18s ease;
+}
+
+.f-modal__wrapper {
+    position: relative;
+    block-size: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.f-modal__wrapper--middle { align-items: center; }
+.f-modal__wrapper--top { align-items: flex-start; }
+.f-modal__wrapper--bottom { align-items: flex-end; }
+
+.f-modal__body {
+    position: relative;
+    inline-size: 100%;
+    background: var(--f-surface);
+    border-radius: calc(var(--f-radius) * 1.6);
+    box-shadow: 0 20px 60px rgba(8, 14, 12, 0.28);
+    animation: f-rise 0.2s ease;
+}
+
+.f-modal__body:not(.f-modal__body--flush) { padding: 1.5rem; }
+.f-modal__body--flush { padding: 0; }
+.f-modal__body--xs { max-inline-size: 20rem; }
+.f-modal__body--sm { max-inline-size: 26rem; }
+.f-modal__body--md { max-inline-size: 34rem; }
+.f-modal__body--lg { max-inline-size: 46rem; }
+.f-modal__body--xl { max-inline-size: 60rem; }
+
+.f-modal__header { display: flex; align-items: flex-start; gap: 1rem; }
+.f-modal__header--center { justify-content: center; text-align: center; }
+.f-modal__heading { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; }
+.f-modal__heading--reverse { flex-direction: column-reverse; }
+.f-modal__title { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--f-text); }
+.f-modal__subtitle { margin: 0; font-size: 0.85rem; color: var(--f-text-soft); }
+
+.f-modal__close {
+    order: 2;
+    flex: none;
+    inline-size: 2rem;
+    block-size: 2rem;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--f-text-soft);
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.f-modal__close:hover { background: rgba(0, 0, 0, 0.1); }
+.f-modal__loading { display: flex; justify-content: center; padding: 2rem; }
+
+.f-modal__spinner {
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    border: 2px solid var(--f-border);
+    border-block-start-color: var(--color-primary, #1d9e75);
+    border-radius: 50%;
+    animation: f-spin 0.7s linear infinite;
+}
+
+.f-hidden { display: none !important; }
+
+@keyframes f-fade { from { opacity: 0; } }
+@keyframes f-rise { from { opacity: 0; transform: translateY(12px); } }
+
+/* ========================================================================
+   Slider
+   ======================================================================== */
+
+.f-slider { position: relative; display: block; }
+.f-slider--static .f-slider__controls,
+.f-slider--static .f-slider__dots { display: none; }
+
+.f-slider__head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-block-end: 1.15rem;
+}
+
+.f-slider__title { margin: 0; font-size: 1.25rem; font-weight: 700; }
+.f-slider__subtitle { margin: 0.2rem 0 0; font-size: 0.85rem; color: var(--f-text-soft); }
+.f-slider__head-actions { flex: none; display: flex; align-items: center; gap: 0.75rem; }
+.f-slider__all { font-size: 0.85rem; font-weight: 600; color: var(--color-primary, #1d9e75); text-decoration: none; }
+.f-slider__all:hover { text-decoration: underline; }
+
+.f-slider__viewport { position: relative; }
+
+/*
+    Native scroll-snap does the work. grid-auto-columns derives each slide's
+    width from the requested slides-per-view, so a fractional value (peeking
+    the next card) is a legitimate setting rather than a special case.
+*/
+.f-slider__track {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: calc((100% - (var(--f-slider-per-view, 4) - 1) * 1rem) / var(--f-slider-per-view, 4));
+    gap: 1rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    padding-block-end: 0.25rem;
+}
+
+.f-slider__track::-webkit-scrollbar { display: none; }
+
+.f-slider__track:focus-visible {
+    outline: 2px solid var(--color-primary, #1d9e75);
+    outline-offset: 3px;
+    border-radius: var(--f-radius);
+}
+
+.f-slider__slide { scroll-snap-align: start; min-inline-size: 0; }
+
+@media (max-width: 1023px) { .f-slider__track { grid-auto-columns: calc((100% - 2rem) / 3); } }
+@media (max-width: 767px) { .f-slider__track { grid-auto-columns: calc((100% - 1rem) / 2); } }
+@media (max-width: 479px) { .f-slider__track { grid-auto-columns: 78%; } }
+
+.f-slider__controls { display: flex; gap: 0.5rem; }
+
+.f-slider__arrow {
+    inline-size: 2.25rem;
+    block-size: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--f-border);
+    border-radius: 50%;
+    background: var(--f-surface);
+    color: var(--f-text);
+    cursor: pointer;
+    transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.f-slider__arrow:hover:not(:disabled) { background: rgba(0, 0, 0, 0.04); }
+.f-slider__arrow:disabled { opacity: 0.35; cursor: default; }
+
+/* Chevron drawn from two borders — no icon asset, and it mirrors with the
+   writing mode because the sides are logical. */
+.f-slider__arrow::before {
+    content: "";
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+    border-inline-start: 2px solid currentColor;
+    border-block-start: 2px solid currentColor;
+}
+
+.f-slider__arrow--prev::before { transform: rotate(-45deg); margin-inline-start: 0.2rem; }
+.f-slider__arrow--next::before { transform: rotate(135deg); margin-inline-end: 0.2rem; }
+
+.f-slider:not(.f-slider--controls-outer) .f-slider__controls {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline: 0;
+    transform: translateY(-50%);
+    justify-content: space-between;
+    pointer-events: none;
+}
+
+.f-slider:not(.f-slider--controls-outer) .f-slider__arrow {
+    pointer-events: auto;
+    margin-inline: -0.75rem;
+    box-shadow: 0 2px 10px rgba(8, 14, 12, 0.12);
+}
+
+.f-slider--arrows-centered .f-slider__controls { inset-block-start: 38%; }
+
+.f-slider__dots { display: flex; justify-content: center; gap: 0.4rem; margin-block-start: 1rem; }
+
+.f-slider__dot {
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--f-border);
+    cursor: pointer;
+    transition: inline-size 0.2s ease, background-color 0.2s ease;
+}
+
+.f-slider__dot.is-active {
+    inline-size: 1.35rem;
+    border-radius: 999px;
+    background: var(--color-primary, #1d9e75);
+}
+
+.f-products-slider { display: block; }
+.f-products-slider[hidden] { display: none; }
+
+.f-products-slider__skeleton {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: calc((100% - 3rem) / 4);
+    gap: 1rem;
+    overflow: hidden;
+}
+
+/* ========================================================================
+   Menu
+   ======================================================================== */
+
+/*
+    The host is transparent to layout.
+
+    In its default mode this component wraps markup the theme already rendered,
+    and the theme's own rules position that markup — a header's flex row expects
+    the <nav> as its child, not a wrapper around it. `display: contents` lets the
+    element carry behaviour and state without introducing a box that would break
+    whatever layout it was dropped into.
+*/
+.f-menu { display: contents; }
+.f-menu[hidden] { display: none; }
+
+/* Rendered mode supplies its own box, since there is no theme markup to defer to. */
+.f-menu__nav { display: block; }
+.f-menu__list { list-style: none; margin: 0; padding: 0; }
+.f-menu__list--root { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.f-menu__item { position: relative; }
+
+.f-menu__link {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: var(--f-radius);
+    color: var(--f-text);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.f-menu__link:hover { color: var(--color-primary, #1d9e75); }
+.f-menu__link:focus-visible { outline: 2px solid var(--color-primary, #1d9e75); outline-offset: -2px; }
+.f-menu__image { inline-size: 1.5rem; block-size: 1.5rem; border-radius: 4px; object-fit: cover; }
+
+.f-menu__caret {
+    inline-size: 0.4rem;
+    block-size: 0.4rem;
+    border-inline-end: 1.5px solid currentColor;
+    border-block-end: 1.5px solid currentColor;
+    transform: rotate(45deg);
+    margin-block-start: -0.2rem;
+    transition: transform 0.18s ease;
+}
+
+.f-menu__item.is-open > .f-menu__link .f-menu__caret {
+    transform: rotate(-135deg);
+    margin-block-start: 0.15rem;
+}
+
+.f-menu__list--sub {
+    position: absolute;
+    inset-block-start: 100%;
+    inset-inline-start: 0;
+    z-index: 60;
+    min-inline-size: 12rem;
+    padding: 0.4rem;
+    background: var(--f-surface);
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    box-shadow: 0 12px 32px rgba(8, 14, 12, 0.14);
+    display: none;
+}
+
+/*
+    State rules carry an extra class on purpose.
+
+    A theme may put its own class on the host — the reference theme uses
+    class="main-menu" so the component inherits its drawer transform and
+    colours — and a descendant rule like `.main-menu ul { display: flex }`
+    (0,0,1,1) outranks a single-class `.f-menu__list--sub` (0,0,1,0). That
+    would leave every submenu permanently open. Two classes (0,0,2,0) win
+    without reaching for !important.
+*/
+.f-menu .f-menu__list--sub { display: none; }
+.f-menu .f-menu__item.is-open > .f-menu__list--sub { display: block; }
+
+.f-menu__list--sub .f-menu__list--sub { inset-block-start: -0.4rem; inset-inline-start: 100%; }
+.f-menu__list--flip { inset-inline-start: auto; inset-inline-end: 0; }
+.f-menu__list--sub .f-menu__list--flip { inset-inline-end: 100%; }
+
+/* The drawer is the same markup laid out as a stack that expands in place. */
+.f-menu--mobile .f-menu__list--root { flex-direction: column; align-items: stretch; gap: 0; }
+.f-menu--mobile .f-menu__link { padding: 0.85rem 0.25rem; border-block-end: 1px solid var(--f-border); }
+.f-menu--mobile .f-menu__caret { margin-inline-start: auto; }
+
+.f-menu--mobile .f-menu__list--sub {
+    position: static;
+    display: none;
+    min-inline-size: 0;
+    padding: 0;
+    padding-inline-start: 1rem;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.f-menu--mobile .f-menu__item.is-open > .f-menu__list--sub { display: block; }
+
+/* ========================================================================
+   Breadcrumb
+   ======================================================================== */
+
+.f-breadcrumb { display: block; }
+.f-breadcrumb[hidden] { display: none; }
+
+.f-breadcrumb__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--f-text-soft);
+}
+
+.f-breadcrumb__item { display: flex; align-items: center; gap: 0.4rem; }
+.f-breadcrumb__item + .f-breadcrumb__item::before { content: "/"; color: var(--f-text-faint); }
+.f-breadcrumb__item a { color: inherit; text-decoration: none; }
+.f-breadcrumb__item a:hover { color: var(--color-primary, #1d9e75); }
+.f-breadcrumb__item.is-current { color: var(--f-text); font-weight: 600; }
+
+/* ========================================================================
+   Footer: social, payments, apps, trust badges
+   ======================================================================== */
+
+.f-social[hidden],
+.f-payments[hidden],
+.f-apps[hidden],
+.f-trust[hidden] { display: none; }
+
+.f-social__title,
+.f-payments__title,
+.f-apps__title {
+    margin: 0 0 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: inherit;
+}
+
+.f-social__list,
+.f-payments__list,
+.f-trust__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.f-social__link {
+    inline-size: 2.25rem;
+    block-size: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--f-border);
+    border-radius: 50%;
+    color: inherit;
+    transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.f-social__link:hover {
+    background: var(--color-primary, #1d9e75);
+    border-color: transparent;
+    color: var(--color-on-primary, #fff);
+    transform: translateY(-1px);
+}
+
+.f-social__link:focus-visible { outline: 2px solid var(--color-primary, #1d9e75); outline-offset: 2px; }
+.f-social--share .f-social__list { gap: 0.4rem; }
+
+.f-payments__item {
+    inline-size: 2.9rem;
+    block-size: 1.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid var(--f-border);
+    border-radius: 5px;
+    background: var(--f-surface);
+    color: var(--f-text-soft);
+}
+
+.f-payments__label {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.f-apps__list { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.f-apps--vertical .f-apps__list { flex-direction: column; align-items: flex-start; }
+
+.f-apps__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.45rem 0.9rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 0.16s ease, transform 0.16s ease;
+}
+
+.f-apps__item:hover { border-color: var(--color-primary, #1d9e75); transform: translateY(-1px); }
+.f-apps__text { display: flex; flex-direction: column; line-height: 1.15; }
+.f-apps__sub { font-size: 0.6rem; opacity: 0.72; }
+.f-apps__store { font-size: 0.85rem; font-weight: 700; }
+
+.f-trust__list { gap: 0.75rem; }
+
+.f-trust__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    font-size: 0.75rem;
+}
+
+.f-trust__text { display: flex; flex-direction: column; line-height: 1.25; }
+.f-trust__label { font-size: 0.68rem; opacity: 0.7; }
+.f-trust__value { font-weight: 700; font-variant-numeric: tabular-nums; }
+.f-trust__glyph { flex: none; color: var(--color-primary, #1d9e75); }
+.f-trust--dark .f-trust__item { border-color: rgba(255, 255, 255, 0.22); }
+.f-trust--dark .f-trust__glyph { color: currentColor; }
+
+@media (prefers-reduced-motion: reduce) {
+    .f-slider__track { scroll-behavior: auto; }
+    .f-btn__loader,
+    .f-modal__spinner,
+    .f-modal__overlay,
+    .f-modal__body { animation: none; }
+    .f-social__link:hover,
+    .f-apps__item:hover { transform: none; }
+}
+
+/*
+    `mobile` has to mean mobile. Without this the drawer variant renders as a
+    plain vertical list in the desktop flow, on top of whatever the theme put
+    in its header — which is exactly what it did.
+
+    A theme that wants an always-visible menu omits the attribute.
+*/
+@media (min-width: 1024px) {
+    .f-menu--mobile { display: none; }
+}
+
+/*
+    Share row: a labelled strip, not a continuation of the buy box and not a
+    bare cluster of circles. Laid out inline so the label and the icons read as
+    one control, and aligned to the content start so it lines up with the
+    buy box above it in either direction.
+*/
+.f-social--share {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-block-start: 1rem;
+    padding-block-start: 1rem;
+    border-block-start: 1px solid var(--f-border);
+}
+
+.f-social--share .f-social__list { justify-content: flex-start; }
+
+.f-social__label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--f-text-soft);
+}
+
+/* Slightly smaller than the footer set — this is a secondary action. */
+.f-social--share .f-social__link { inline-size: 2rem; block-size: 2rem; }

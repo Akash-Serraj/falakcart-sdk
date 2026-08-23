@@ -1,0 +1,440 @@
+/*
+    FalakCart storefront components — default stylesheet.
+
+    Injected at head:end for every storefront render, so components are styled
+    in any theme without the theme author doing anything.
+
+    Everything here derives from the brand tokens master.twig already emits
+    (--color-primary, --color-text, --font-main, ...), with fallbacks for each,
+    so a merchant's colour choice restyles the components exactly as it
+    restyles the theme's own markup. Themes override any rule by writing a
+    plain selector in their own app.css — these are light-DOM elements with no
+    shadow root, so nothing needs piercing and nothing needs !important.
+
+    Tailwind-based themes need nothing extra: every value here derives from
+    CSS custom properties, so a merchant palette reaches these components the
+    same way it reaches the theme own markup.
+
+    RTL-first, like the reference theme: logical properties throughout.
+*/
+
+/* ------------------------------------------------------------------ tokens */
+
+:root {
+    --f-radius: var(--radius-sm, 0.5rem);
+    --f-border: var(--color-border, #e8eaef);
+    --f-surface: var(--color-surface, #ffffff);
+    --f-text: var(--color-text, #1f2430);
+    --f-text-soft: var(--color-text-soft, #6b7280);
+    --f-text-faint: var(--color-text-faint, #9aa1ad);
+    --f-danger: var(--color-danger, #c0392b);
+    --f-star: #facc15;
+    --f-star-empty: #e2e5ea;
+}
+
+/*
+    Components stay invisible until the SDK upgrades them (base.js sets
+    data-falak on connect), so a slow bundle shows nothing rather than a flash
+    of raw content and unstyled attributes.
+
+    The list is deliberate rather than every falak-* element. It names only the
+    components whose pre-upgrade DOM is *wrong*:
+
+      - the first four render their own markup, so before upgrade they are
+        either empty or showing unformatted attributes;
+      - an accordion body holds author content that has no collapsed state yet,
+        so it would appear expanded and then snap shut;
+      - a modal holds author content with no dialog around it yet, so it would
+        render inline at the foot of the page.
+
+    Anything not listed is correct before upgrade and must stay visible —
+    <falak-menu> in particular wraps server-rendered navigation, and hiding it
+    would undo the very reason that markup is server-rendered.
+*/
+falak-quantity-input:not([data-falak]),
+falak-rating-stars:not([data-falak]),
+falak-product-card:not([data-falak]),
+falak-products-list:not([data-falak]),
+falak-accordion-body:not([data-falak]),
+falak-modal:not([data-falak]) {
+    visibility: hidden;
+}
+
+/* A modal must not occupy layout before it becomes a dialog. */
+falak-modal:not([data-falak]) { display: none; }
+
+falak-accordion,
+falak-accordion-head,
+falak-accordion-body,
+falak-product-card,
+falak-products-list {
+    display: block;
+}
+
+/* --------------------------------------------------------- quantity input */
+
+.f-qty {
+    display: inline-flex;
+    align-items: center;
+    background: var(--f-surface);
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    overflow: hidden;
+}
+
+.f-qty__step {
+    inline-size: 2.25rem;
+    block-size: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 1.05rem;
+    line-height: 1;
+    color: var(--f-text-soft);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.f-qty__step:hover:not(:disabled) { background: rgba(0, 0, 0, 0.04); }
+.f-qty__step:disabled { opacity: 0.35; cursor: default; }
+
+.f-qty__input {
+    inline-size: 3rem;
+    block-size: 2.25rem;
+    padding: 0;
+    text-align: center;
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--f-text);
+    background: transparent;
+    border: 0;
+    border-inline: 1px solid var(--f-border);
+}
+
+.f-qty__input:focus { outline: none; }
+
+/* --------------------------------------------------------------- accordion */
+
+.f-accordion {
+    display: flex;
+    flex-direction: column;
+    inline-size: 100%;
+    background: var(--f-surface);
+    border-radius: var(--f-radius);
+}
+
+.f-accordion--bordered { border: 1px solid var(--f-border); }
+
+.f-accordion__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    color: var(--f-text);
+    cursor: pointer;
+    user-select: none;
+}
+
+.f-accordion--sm .f-accordion__head { padding: 0.5rem 0.75rem; font-size: 0.85rem; }
+.f-accordion--lg .f-accordion__head { padding: 1.25rem 1.5rem; font-size: 1.05rem; }
+
+.f-accordion__head[role='button']:focus-visible {
+    outline: 2px solid var(--color-primary, #1d9e75);
+    outline-offset: -2px;
+    border-radius: var(--f-radius);
+}
+
+.f-accordion__icon {
+    flex: none;
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--f-text-soft);
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.f-accordion__body {
+    padding: 0 1rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.7;
+    color: var(--f-text-soft);
+}
+
+/* The one rule that makes the accordion an accordion. */
+.f-accordion__body[data-collapsed='true'] { display: none; }
+
+/* ------------------------------------------------------------------- stars */
+
+.f-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.f-stars__set {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.0625rem;
+}
+
+/*
+    Two stacked glyphs with the top one clipped to a width percentage, so a 4.2
+    rating renders a genuinely 20%-filled fifth star instead of being rounded
+    to the nearest half-star image.
+*/
+.f-stars__star {
+    position: relative;
+    display: inline-block;
+    inline-size: 1rem;
+    block-size: 1rem;
+    line-height: 1;
+    cursor: default;
+}
+
+.f-stars__star::before {
+    content: '\2605';
+    position: absolute;
+    inset: 0;
+    color: var(--f-star-empty);
+}
+
+.f-stars__fill {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inline-size: var(--f-star-fill, 0%);
+    overflow: hidden;
+    color: var(--f-star);
+    font-style: normal;
+    line-height: 1;
+}
+
+.f-stars__fill::before { content: '\2605'; }
+
+.f-stars[role='radiogroup'] .f-stars__star { cursor: pointer; }
+.f-stars[role='radiogroup'] .f-stars__star:focus-visible {
+    outline: 2px solid var(--color-primary, #1d9e75);
+    outline-offset: 2px;
+}
+
+.f-stars__value { font-size: 0.85rem; font-weight: 700; color: var(--f-text); }
+.f-stars__count { font-size: 0.75rem; color: var(--f-text-faint); }
+
+falak-rating-stars[data-busy] { opacity: 0.5; }
+
+/* -------------------------------------------------------------- product card */
+
+.f-card { block-size: 100%; }
+
+.f-card__inner {
+    display: flex;
+    flex-direction: column;
+    block-size: 100%;
+    background: var(--f-surface);
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.f-card__inner:hover {
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+    transform: translateY(-2px);
+}
+
+.f-card__media {
+    position: relative;
+    display: block;
+    aspect-ratio: 1;
+    background: rgba(0, 0, 0, 0.03);
+    overflow: hidden;
+}
+
+.f-card__media img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+}
+
+.f-card__placeholder { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.05); }
+
+.f-card__badge {
+    position: absolute;
+    inset-block-start: 0.5rem;
+    inset-inline-start: 0.5rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.25rem;
+    background: var(--color-primary, #1d9e75);
+    color: var(--color-on-primary, #fff);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.f-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    padding: 0.75rem;
+    flex-grow: 1;
+}
+
+.f-card__title {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.f-card__link {
+    color: var(--f-text);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.f-card__link:hover { color: var(--color-primary, #1d9e75); }
+
+.f-card__price {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin: auto 0 0;
+    padding-block-start: 0.25rem;
+}
+
+.f-card__price-now { font-size: 1rem; font-weight: 700; color: var(--f-text); }
+.f-card__price-was { font-size: 0.75rem; color: var(--f-text-faint); }
+.f-card__stock { margin: 0; font-size: 0.75rem; font-weight: 600; color: var(--f-danger); }
+
+.f-card__actions { padding: 0 0.75rem 0.75rem; }
+.f-card__actions:empty { display: none; }
+
+.f-card--out-of-stock .f-card__media { opacity: 0.6; }
+.f-card--empty { display: none; }
+
+.f-card--skeleton {
+    border-radius: var(--f-radius);
+    background: rgba(0, 0, 0, 0.05);
+    aspect-ratio: 3 / 4;
+    animation: f-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes f-pulse { 50% { opacity: 0.45; } }
+
+/* ------------------------------------------------------------- products list */
+
+.f-list { display: block; inline-size: 100%; }
+
+.f-list__grid {
+    display: grid;
+    gap: 1rem;
+    /* Column count is an element attribute, so density is a theme decision. */
+    grid-template-columns: repeat(var(--f-list-columns, 4), minmax(0, 1fr));
+}
+
+@media (max-width: 1023px) {
+    .f-list__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 639px) {
+    .f-list__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.f-list__count { margin: 0 0 0.75rem; font-size: 0.8rem; color: var(--f-text-faint); }
+
+.f-list__message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 2.5rem 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--f-text-soft);
+}
+
+.f-list__retry {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    background: var(--f-surface);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--f-text);
+    cursor: pointer;
+}
+
+.f-list__retry:hover { background: rgba(0, 0, 0, 0.04); }
+
+.f-list[data-busy] .f-list__grid { opacity: 0.7; }
+
+@media (prefers-reduced-motion: reduce) {
+    .f-card__inner,
+    .f-qty__step { transition: none; }
+    .f-card__inner:hover { transform: none; }
+    .f-card--skeleton { animation: none; }
+}
+
+/* ------------------------------------------------- product card variants */
+/*
+    Theme-raed's custom-salla-product-card vocabulary, as attributes:
+    minimal · full-image · special · horizontal. Same data, four treatments.
+*/
+
+/* minimal: dense grids — image, title, price, nothing else */
+.f-card--minimal .f-card__body { padding: 0.5rem 0.25rem 0.25rem; gap: 0.2rem; }
+.f-card--minimal .f-card__inner { border: 0; background: transparent; }
+.f-card--minimal .f-card__inner:hover { box-shadow: none; transform: none; }
+.f-card--minimal .f-card__media { border-radius: var(--f-radius); }
+
+/* full-image: the image is the card; title and price sit over its foot */
+.f-card--full-image .f-card__inner { position: relative; border: 0; }
+.f-card--full-image .f-card__media { aspect-ratio: 3 / 4; }
+
+.f-card--full-image .f-card__body {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline: 0;
+    padding: 2rem 0.9rem 0.9rem;
+    gap: 0.15rem;
+    background: linear-gradient(to top, rgba(10, 14, 12, 0.78), transparent);
+}
+
+.f-card--full-image .f-card__link,
+.f-card--full-image .f-card__price-now { color: #fff; }
+.f-card--full-image .f-card__price-was { color: rgba(255, 255, 255, 0.72); }
+
+/* special: the featured slot — stronger frame + remaining-stock urgency */
+.f-card--special .f-card__inner {
+    border: 2px solid var(--color-primary, #1d9e75);
+}
+
+.f-card__remaining {
+    margin: 0;
+    align-self: flex-start;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-primary, #1d9e75) 12%, transparent);
+    color: var(--color-primary, #1d9e75);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+/* horizontal: image beside content — search results, compact lists */
+.f-card--horizontal .f-card__inner { flex-direction: row; align-items: stretch; }
+.f-card--horizontal .f-card__media { flex: none; inline-size: 7.5rem; aspect-ratio: 1; }
+.f-card--horizontal .f-card__body { justify-content: center; }

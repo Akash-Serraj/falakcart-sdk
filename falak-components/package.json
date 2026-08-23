@@ -1,0 +1,16 @@
+{
+    "name": "@falakcart/components",
+    "version": "1.0.0",
+    "description": "FalakCart storefront web components. Reads @falakcart/sdk from window at runtime; ships its stylesheet as falak-components.css.",
+    "license": "UNLICENSED",
+    "private": true,
+    "type": "module",
+    "main": "src/index.js",
+    "files": [
+        "src"
+    ],
+    "scripts": {
+        "build": "vite build",
+        "watch": "vite build --watch"
+    }
+}

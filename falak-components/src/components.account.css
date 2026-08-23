@@ -1,0 +1,449 @@
+/*
+    Account surface — login sheet, user menu, localization sheet, offer modal
+    and the review list.
+
+    Third of the three stylesheets the entry imports; Vite's library mode
+    concatenates them into one falak-components.css. Same rules as the others:
+    brand tokens only, logical properties throughout.
+*/
+
+/* ========================================================================
+   Login sheet
+   ======================================================================== */
+
+.f-login { display: block; }
+
+.f-login__form { display: flex; flex-direction: column; gap: 0.65rem; margin-block-start: 0.5rem; }
+.f-login__label { font-size: 0.8rem; font-weight: 600; color: var(--f-text-soft); }
+
+.f-login__input {
+    inline-size: 100%;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    background: var(--f-surface);
+    color: var(--f-text);
+    font: inherit;
+    font-size: 0.95rem;
+}
+
+.f-login__input:focus {
+    outline: none;
+    border-color: var(--color-primary, #1d9e75);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary, #1d9e75) 18%, transparent);
+}
+
+/* The code field is read back digit by digit, so it gets room to breathe. */
+.f-login__input--code {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.5em;
+    text-indent: 0.5em;
+    font-variant-numeric: tabular-nums;
+}
+
+.f-login__error {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--f-danger);
+}
+
+.f-login__hint {
+    margin: 0;
+    padding: 0.45rem 0.6rem;
+    border-radius: var(--f-radius);
+    background: color-mix(in srgb, var(--color-primary, #1d9e75) 10%, transparent);
+    font-size: 0.78rem;
+    color: var(--f-text-soft);
+}
+
+.f-login__actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-block-start: 0.15rem;
+}
+
+.f-login__link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 0.78rem;
+    color: var(--color-primary, #1d9e75);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.f-login__link:disabled { color: var(--f-text-faint); cursor: default; text-decoration: none; }
+
+/* ========================================================================
+   User menu
+   ======================================================================== */
+
+.f-user { display: inline-block; position: relative; }
+.f-user__wrap { position: relative; }
+
+.f-user__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.f-user__trigger:hover { background: rgba(0, 0, 0, 0.05); }
+.f-user__trigger:focus-visible { outline: 2px solid var(--color-primary, #1d9e75); outline-offset: 2px; }
+
+.f-user__avatar {
+    flex: none;
+    inline-size: 2rem;
+    block-size: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--color-primary, #1d9e75);
+    color: var(--color-on-primary, #fff);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.f-user__avatar--lg { inline-size: 2.6rem; block-size: 2.6rem; font-size: 0.9rem; }
+.f-user__name { max-inline-size: 9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.f-user__panel {
+    position: absolute;
+    inset-block-start: calc(100% + 0.4rem);
+    inset-inline-end: 0;
+    z-index: 70;
+    min-inline-size: 14rem;
+    padding: 0.4rem;
+    background: var(--f-surface);
+    border: 1px solid var(--f-border);
+    border-radius: calc(var(--f-radius) * 1.2);
+    box-shadow: 0 14px 36px rgba(8, 14, 12, 0.16);
+}
+
+.f-user__panel[hidden] { display: none; }
+
+.f-user__header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.65rem 0.75rem;
+    border-block-end: 1px solid var(--f-border);
+    margin-block-end: 0.3rem;
+}
+
+.f-user__greeting { display: flex; flex-direction: column; line-height: 1.25; min-inline-size: 0; }
+.f-user__greeting small { font-size: 0.68rem; color: var(--f-text-faint); }
+.f-user__greeting strong { font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.f-user__list { list-style: none; margin: 0; padding: 0; }
+
+.f-user__link {
+    inline-size: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.65rem;
+    border: 0;
+    border-radius: var(--f-radius);
+    background: none;
+    color: var(--f-text);
+    font: inherit;
+    font-size: 0.85rem;
+    text-align: start;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.f-user__link:hover { background: rgba(0, 0, 0, 0.05); }
+.f-user__icon { flex: none; display: inline-flex; color: var(--f-text-soft); }
+.f-user__item--logout { margin-block-start: 0.25rem; padding-block-start: 0.25rem; border-block-start: 1px solid var(--f-border); }
+.f-user__item--logout .f-user__link { color: var(--f-danger); }
+.f-user__item--logout .f-user__icon { color: currentColor; }
+
+/* Inline is a sidebar list, not a dropdown. */
+.f-user--inline { display: block; inline-size: 100%; }
+.f-user--inline .f-user__link { border-radius: 0; padding-inline: 0; }
+
+/* ========================================================================
+   Localization sheet
+   ======================================================================== */
+
+.f-locale { display: inline-block; }
+
+.f-locale__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.6rem;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.f-locale__trigger:hover { background: rgba(0, 0, 0, 0.05); }
+.f-locale__trigger:focus-visible { outline: 2px solid var(--color-primary, #1d9e75); outline-offset: 2px; }
+.f-locale__globe { display: inline-flex; opacity: 0.75; }
+.f-locale__sep { opacity: 0.45; }
+
+.f-locale__group + .f-locale__group { margin-block-start: 1.25rem; }
+
+.f-locale__heading {
+    margin: 0 0 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--f-text-faint);
+}
+
+.f-locale__options { display: grid; gap: 0.4rem; }
+
+.f-locale__option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    background: var(--f-surface);
+    color: var(--f-text);
+    font: inherit;
+    font-size: 0.88rem;
+    text-align: start;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.f-locale__option:hover { border-color: var(--color-primary, #1d9e75); }
+
+.f-locale__option.is-current {
+    border-color: var(--color-primary, #1d9e75);
+    background: color-mix(in srgb, var(--color-primary, #1d9e75) 10%, transparent);
+    font-weight: 600;
+}
+
+.f-locale__code { font-size: 0.72rem; color: var(--f-text-faint); font-variant-numeric: tabular-nums; }
+
+/* ========================================================================
+   Comments / reviews
+   ======================================================================== */
+
+.f-comments { display: block; }
+.f-comments[hidden] { display: none; }
+
+.f-comments__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-block-end: 1rem;
+}
+
+.f-comments__title { margin: 0; font-size: 1.1rem; font-weight: 700; }
+.f-comments__empty { margin: 0; padding: 1.5rem 0; color: var(--f-text-soft); font-size: 0.88rem; }
+
+.f-comments__gate {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0.9rem 1.1rem;
+    border: 1px dashed var(--f-border);
+    border-radius: var(--f-radius);
+    margin-block-end: 1.25rem;
+}
+
+.f-comments__gate p { margin: 0; font-size: 0.85rem; color: var(--f-text-soft); }
+
+.f-comments__form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    align-items: flex-start;
+    padding: 1.1rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    margin-block-end: 1.5rem;
+}
+
+.f-comments__rating { display: flex; align-items: center; gap: 0.6rem; }
+.f-comments__label { font-size: 0.82rem; font-weight: 600; color: var(--f-text-soft); }
+
+.f-comments__textarea {
+    inline-size: 100%;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    background: var(--f-surface);
+    color: var(--f-text);
+    font: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+}
+
+.f-comments__textarea:focus {
+    outline: none;
+    border-color: var(--color-primary, #1d9e75);
+}
+
+.f-comments__error { margin: 0; font-size: 0.8rem; color: var(--f-danger); }
+
+.f-comments__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.1rem; }
+.f-comments__item { padding-block-end: 1.1rem; border-block-end: 1px solid var(--f-border); }
+.f-comments__item:last-child { border-block-end: 0; padding-block-end: 0; }
+
+.f-comments__meta { display: flex; align-items: center; gap: 0.65rem; margin-block-end: 0.4rem; }
+
+.f-comments__avatar {
+    flex: none;
+    inline-size: 2rem;
+    block-size: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--f-text-soft);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/*
+    The name block must NOT stretch (`flex: 1` pushed the stars to the far
+    edge of the row, a screen-width away from the name they belong to).
+    Avatar, name and stars sit together as one group at the reading start.
+*/
+.f-comments__meta > div { display: flex; flex-direction: column; line-height: 1.3; min-inline-size: 0; }
+.f-comments__author { font-size: 0.85rem; }
+.f-comments__date { font-size: 0.72rem; color: var(--f-text-faint); }
+.f-comments__text { margin: 0; font-size: 0.88rem; line-height: 1.65; color: var(--f-text-soft); }
+.f-comments__more { display: flex; justify-content: center; margin-block-start: 1.25rem; }
+
+@media (prefers-reduced-motion: reduce) {
+    .f-locale__option { transition: none; }
+}
+
+/* Signed in but nothing to review against — a statement, not a call to action. */
+.f-comments__gate--quiet {
+    justify-content: flex-start;
+    border-style: solid;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+/* A submitted review acknowledged while it waits for moderation. */
+.f-comments__pending {
+    margin: 0 0 1rem;
+    padding: 0.7rem 1rem;
+    border-radius: var(--f-radius);
+    border: 1px solid color-mix(in srgb, var(--color-primary, #1d9e75) 35%, transparent);
+    background: color-mix(in srgb, var(--color-primary, #1d9e75) 8%, transparent);
+    font-size: 0.85rem;
+    color: var(--f-text);
+}
+
+
+/* ========================================================================
+   Offers list — the React SpecialOffersModal, laid inline as a section
+   ======================================================================== */
+
+.f-offers { display: block; }
+.f-offers[hidden] { display: none; }
+
+.f-offers__title { margin: 0 0 1rem; font-size: 1.25rem; font-weight: 700; }
+
+.f-offers__grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 1rem;
+}
+
+.f-offers__card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 1.1rem 1.2rem;
+    border: 1px dashed color-mix(in srgb, var(--color-primary, #1d9e75) 45%, transparent);
+    border-radius: calc(var(--f-radius) * 1.4);
+    background: color-mix(in srgb, var(--color-primary, #1d9e75) 6%, var(--f-surface));
+}
+
+.f-offers__benefit {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--color-primary, #1d9e75);
+}
+
+.f-offers__name { margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--f-text); }
+.f-offers__text { margin: 0; font-size: 0.82rem; color: var(--f-text-soft); line-height: 1.55; }
+
+.f-offers__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.9rem;
+    margin-block-start: 0.3rem;
+    font-size: 0.72rem;
+    color: var(--f-text-faint);
+}
+
+/* ========================================================================
+   Offers banner — the legacy OffersBanner strip + its list modal trigger
+   ======================================================================== */
+
+.f-offer-banner { display: block; }
+.f-offer-banner[hidden] { display: none; }
+
+.f-offer-banner__strip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding: 0.5rem 1rem;
+    background: color-mix(in srgb, var(--color-primary, #1d9e75) 10%, var(--f-surface));
+    border-block-end: 1px solid color-mix(in srgb, var(--color-primary, #1d9e75) 25%, transparent);
+    font-size: 0.85rem;
+}
+
+.f-offer-banner__text { font-weight: 600; color: var(--f-text); }
+
+.f-offer-banner__more {
+    padding: 0.25rem 0.9rem;
+    border: 1px solid var(--color-primary, #1d9e75);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-primary, #1d9e75);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.f-offer-banner__more:hover {
+    background: var(--color-primary, #1d9e75);
+    color: var(--color-on-primary, #fff);
+}
