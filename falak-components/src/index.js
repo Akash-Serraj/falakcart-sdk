@@ -34,6 +34,7 @@ import FalakUserMenu from './components/user-menu.js';
 import FalakLocalizationModal from './components/localization-modal.js';
 import FalakOfferModal from './components/offer-modal.js';
 import FalakComments from './components/comments.js';
+import FalakQuestions from './components/questions.js';
 import FalakOffers from './components/offers.js';
 
 const REGISTRY = {
@@ -69,6 +70,7 @@ const REGISTRY = {
     'falak-offer-modal': FalakOfferModal,
     'falak-offers': FalakOffers,
     'falak-comments': FalakComments,
+    'falak-questions': FalakQuestions,
 };
 
 export function defineComponents() {

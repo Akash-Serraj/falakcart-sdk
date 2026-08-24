@@ -85,6 +85,22 @@ export default class FalakProductCard extends FalakElement {
     get isSpecial() { return this.boolAttr('special'); }
     get isHorizontal() { return this.boolAttr('horizontal'); }
 
+    /**
+     * Opt-in standard buy button (`show-add-button`). Themes that slot their
+     * own control keep doing that; this exists so list-rendered cards — which
+     * have no slot — can still carry the action. Clicking emits `cart::add`
+     * on the bus; the button also carries data-add-to-cart, the attribute
+     * themes already delegate on.
+     */
+    get showAddButton() { return this.boolAttr('show-add-button'); }
+
+    /**
+     * Opt-in wishlist square (`show-wishlist`), the v2 card's companion to the
+     * buy button. Emits `wishlist::toggle` and carries data-wishlist for
+     * theme-level delegates, mirroring the buy button's contract.
+     */
+    get showWishlist() { return this.boolAttr('show-wishlist'); }
+
     render() {
         const raw = this.product;
 
@@ -151,7 +167,21 @@ export default class FalakProductCard extends FalakElement {
                         : ''}
                 </div>
 
-                <div class="f-card__actions"></div>
+                <div class="f-card__actions">
+                    ${this.showAddButton ? `
+                        <button type="button" class="f-card__add"
+                                data-add-to-cart="${product.id}"
+                                ${product.inStock ? '' : 'disabled'}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                            <span>${this.escape(this.trans('product.add_to_cart'))}</span>
+                        </button>` : ''}
+                    ${this.showWishlist ? `
+                        <button type="button" class="f-card__wishlist"
+                                data-wishlist="${product.id}"
+                                aria-label="${this.escape(this.trans('product.add_to_wishlist'))}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                        </button>` : ''}
+                </div>
             </article>`;
 
         // Anything the author slotted into the element is moved into the
@@ -174,6 +204,22 @@ export default class FalakProductCard extends FalakElement {
         this._wired = true;
 
         this.listen(this, 'click', event => {
+            if (event.target.closest('.f-card__add')) {
+                this.emitBus('cart::add', {
+                    productId: this.product?.id,
+                    source: this.attr('source') || 'card',
+                });
+                return;
+            }
+
+            if (event.target.closest('.f-card__wishlist')) {
+                this.emitBus('wishlist::toggle', {
+                    productId: this.product?.id,
+                    source: this.attr('source') || 'card',
+                });
+                return;
+            }
+
             if (!event.target.closest('.f-card__link')) return;
 
             this.emitBus('product::viewed', {

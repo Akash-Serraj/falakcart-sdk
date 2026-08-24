@@ -120,6 +120,11 @@ export default class FalakLocalizationModal extends FalakElement {
             const currency = event.target.closest('[data-currency]');
             if (currency) this.sdk.localization.switchCurrency(currency.dataset.currency);
         });
+
+        // Keep the wrapper's state honest when the inner modal dismisses
+        // itself (close button, overlay, Escape) — a wrapper still marked
+        // visible would re-open the modal on its next render.
+        this.listen(this, 'modal-close', () => this.removeAttribute('visible'));
     }
 
     onAttributeChange(name) {

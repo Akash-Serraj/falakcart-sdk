@@ -20,6 +20,7 @@ import registerEvents from './events.js';
 import ApiClient from './api/client.js';
 import ProductApi from './api/product.js';
 import ReviewApi from './api/review.js';
+import QuestionApi from './api/question.js';
 import AuthApi from './api/auth.js';
 import LocalizationApi from './api/localization.js';
 import OfferApi from './api/offer.js';
@@ -73,6 +74,7 @@ function createSdk() {
         client,
         product: new ProductApi(client, events.product),
         review: new ReviewApi(client, events.review, config),
+        question: new QuestionApi(client, events.question, config),
         auth: new AuthApi(client, events.auth, config, storage),
         localization: new LocalizationApi(client, events.localization, config, storage),
         offer: new OfferApi(client, events.offer, storage),
@@ -100,6 +102,7 @@ function createSdk() {
 
         product: domain(api.product, events.product),
         review: domain(api.review, events.review),
+        question: domain(api.question, events.question),
         auth: domain(api.auth, events.auth),
         localization: domain(api.localization, events.localization),
         offer: domain(api.offer, events.offer),

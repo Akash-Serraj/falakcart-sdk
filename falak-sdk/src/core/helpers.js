@@ -23,18 +23,23 @@ export default class Helpers {
         if (!Number.isFinite(value)) return '';
 
         const code = currency || this.config.get('currency.code', 'SAR');
-        const locale = this.config.get('currency.locale') || this.localeTag();
 
-        try {
-            return new Intl.NumberFormat(locale, {
-                style: 'currency',
-                currency: code,
-                minimumFractionDigits: this.config.get('currency.decimals', 2),
-            }).format(value);
-        } catch (e) {
-            // Unknown currency code, or an Intl-less environment.
-            return `${this.number(value)} ${code}`;
+        /*
+         * Mirrors the platform's CurrencyFormatter exactly — `1,234.50 SAR`,
+         * Arabic-Indic digits only when the merchant enabled them. A price a
+         * component re-renders must be byte-identical to the one Twig printed,
+         * so Intl's currency style (which places symbols per locale) is out.
+         */
+        let formatted = value.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+
+        if (this.config.get('store.settings.arabic_numbers_enabled', false)) {
+            formatted = formatted.replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
         }
+
+        return `${formatted} ${code}`;
     }
 
     number(value) {

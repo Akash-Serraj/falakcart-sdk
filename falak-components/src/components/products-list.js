@@ -128,6 +128,10 @@ export default class FalakProductsList extends FalakElement {
             card._product = product;
             card.setAttribute('product-id', product.id);
             card.setAttribute('source', this.attr('source') || 'products-list');
+            // `card-button` / `card-wishlist` on the list put the standard
+            // actions on every card it renders.
+            if (this.boolAttr('card-button')) card.setAttribute('show-add-button', '');
+            if (this.boolAttr('card-wishlist')) card.setAttribute('show-wishlist', '');
             grid.appendChild(card);
         });
 

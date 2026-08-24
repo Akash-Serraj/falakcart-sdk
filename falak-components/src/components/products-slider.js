@@ -121,6 +121,11 @@ export default class FalakProductsSlider extends FalakElement {
             card.setAttribute('product-id', product.id);
             card.setAttribute('source', this.attr('source-label') || `slider.${this.source}`);
 
+            // Same opt-in vocabulary as <falak-products-list>: the section
+            // decides whether its cards carry buy/wishlist actions.
+            if (this.boolAttr('card-button')) card.setAttribute('show-add-button', '');
+            if (this.boolAttr('card-wishlist')) card.setAttribute('show-wishlist', '');
+
             slider.appendChild(card);
         });
 

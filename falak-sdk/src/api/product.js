@@ -29,7 +29,9 @@ export default class ProductApi extends BaseApi {
 
         let products = await this.call(endpoint);
 
-        products = Array.isArray(products) ? products : (products?.data ?? []);
+        // The list endpoint returns a bare array; the by-category endpoint
+        // wraps its rows: { id, categoryName, products: [...] }.
+        products = Array.isArray(products) ? products : (products?.products ?? products?.data ?? []);
 
         if (search) {
             const needle = String(search).toLowerCase();

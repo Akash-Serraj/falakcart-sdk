@@ -11,6 +11,22 @@ import FalakElement from '../base.js';
  * number, then a six-digit code. There is no password and no separate register
  * screen — `send-otp` creates the customer if the number is new.
  */
+/**
+ * Dial codes offered by the phone step, KSA first — the platform's home
+ * market and the OTP gateway's primary route. The list is deliberately
+ * short: a storefront login is not a phone-number encyclopedia.
+ */
+const DIAL_CODES = [
+    { country: 'SA', dial: '+966' },
+    { country: 'AE', dial: '+971' },
+    { country: 'KW', dial: '+965' },
+    { country: 'BH', dial: '+973' },
+    { country: 'QA', dial: '+974' },
+    { country: 'OM', dial: '+968' },
+    { country: 'JO', dial: '+962' },
+    { country: 'EG', dial: '+20' },
+];
+
 export default class FalakLoginModal extends FalakElement {
     static observedAttributes = ['visible'];
     static RESEND_SECONDS = 45;
@@ -25,6 +41,13 @@ export default class FalakLoginModal extends FalakElement {
 
     setup() {
         this.phone = this.sdk.storage.getWithTTL('auth.pending_phone') || '';
+
+        // A restored pending number splits back into dial + local so the
+        // selector shows what was actually chosen, not the default.
+        const known = DIAL_CODES.find(entry => this.phone.startsWith(entry.dial));
+        this.dial = known?.dial || '+966';
+        this.local = known ? this.phone.slice(known.dial.length) : this.phone;
+
         this.setState('step', 'phone');
 
         // The gated-action primitive announces here; nothing else has to know
@@ -59,10 +82,18 @@ export default class FalakLoginModal extends FalakElement {
         return `
             <form class="f-login__form" data-step="phone" novalidate>
                 <label class="f-login__label" for="falak-login-phone">${this.escape(this.trans('auth.phone'))}</label>
-                <input class="f-login__input" id="falak-login-phone" name="phone"
-                       type="tel" inputmode="tel" autocomplete="tel" dir="ltr"
-                       value="${this.escape(this.phone)}"
-                       placeholder="05xxxxxxxx" required>
+                <div class="f-login__phone-row" dir="ltr">
+                    <select class="f-login__dial" name="dial" aria-label="${this.escape(this.trans('auth.dial_code'))}">
+                        ${DIAL_CODES.map(entry => `
+                            <option value="${entry.dial}" ${entry.dial === this.dial ? 'selected' : ''}>
+                                ${entry.country} ${entry.dial}
+                            </option>`).join('')}
+                    </select>
+                    <input class="f-login__input" id="falak-login-phone" name="phone"
+                           type="tel" inputmode="tel" autocomplete="tel" dir="ltr"
+                           value="${this.escape(this.local)}"
+                           placeholder="5xxxxxxxx" required>
+                </div>
                 <p class="f-login__error" data-error hidden></p>
                 <falak-button type="submit" color="primary" width="wide" loader-position="center">
                     ${this.escape(this.trans('auth.send_code'))}
@@ -110,21 +141,39 @@ export default class FalakLoginModal extends FalakElement {
         });
 
         // A closed modal must not leave a half-finished code step behind for
-        // the next time it opens.
-        this.listen(this, 'modal-close', () => this.toPhoneStep());
+        // the next time it opens. Dropping our own `visible` first is what
+        // actually lets it close: toPhoneStep re-renders, and a wrapper still
+        // marked visible would re-create the inner modal open again.
+        this.listen(this, 'modal-close', () => {
+            this.removeAttribute('visible');
+            this.toPhoneStep();
+        });
     }
 
     /* --------------------------------------------------------------- steps */
 
     async submitPhone(form) {
-        const phone = String(new FormData(form).get('phone') || '').trim();
+        const data = new FormData(form);
+        const dial = String(data.get('dial') || this.dial || '+966');
+        let local = String(data.get('phone') || '').trim().replace(/[\s-]/g, '');
 
-        if (!phone) return this.showError(form, this.trans('auth.phone_required'));
+        if (!local) return this.showError(form, this.trans('auth.phone_required'));
+
+        /*
+         * Shoppers type what they dial: 05xxxxxxxx locally, or a full +966…
+         * pasted from somewhere. Compose one E.164-ish number either way —
+         * a number that already carries a country code wins over the select.
+         */
+        const phone = local.startsWith('+') || local.startsWith('00')
+            ? local
+            : dial + local.replace(/^0+/, '');
 
         await this.withButton(form, async () => {
             const response = await this.sdk.auth.sendOtp(phone);
 
             this.phone = phone;
+            this.dial = dial;
+            this.local = local.startsWith('+') || local.startsWith('00') ? local : local.replace(/^0+/, '');
 
             // Local development returns the code in the body so nobody has to
             // read an SMS log; production omits it.

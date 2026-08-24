@@ -37,6 +37,21 @@ class ReviewEvents extends Namespace {
     }
 }
 
+class QuestionEvents extends Namespace {
+    constructor(emitter) {
+        super(emitter);
+        this.namespace = 'question';
+        this.events = {
+            fetched: 'fetched',
+            asked: 'asked',
+            askFailed: 'ask.failed',
+            replied: 'replied',
+            replyFailed: 'reply.failed',
+        };
+        this.register();
+    }
+}
+
 class AuthEvents extends Namespace {
     constructor(emitter) {
         super(emitter);
@@ -102,6 +117,7 @@ export default function registerEvents(emitter) {
     return {
         product: new ProductEvents(emitter),
         review: new ReviewEvents(emitter),
+        question: new QuestionEvents(emitter),
         auth: new AuthEvents(emitter),
         localization: new LocalizationEvents(emitter),
         offer: new OfferEvents(emitter),
