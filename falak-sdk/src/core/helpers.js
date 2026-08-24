@@ -39,7 +39,14 @@ export default class Helpers {
             formatted = formatted.replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
         }
 
-        return `${formatted} ${code}`;
+        /*
+         * Display labels come from the server at init, keyed by code, so Twig
+         * and this function read the same table and cannot disagree. A code
+         * the locale does not localize prints as itself.
+         */
+        const label = (this.config.get('currency.labels', {}) || {})[code] || code;
+
+        return `${formatted} ${label}`;
     }
 
     number(value) {
