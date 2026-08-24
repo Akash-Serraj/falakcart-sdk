@@ -15,7 +15,7 @@ export default defineConfig({
         outDir: fileURLToPath(new URL('../../public/sdk', import.meta.url)),
         emptyOutDir: false,          // components build writes to the same folder
         target: 'es2020',
-        sourcemap: true,
+        sourcemap: 'hidden',
         lib: {
             entry: fileURLToPath(new URL('src/index.js', import.meta.url)),
             name: 'falak',

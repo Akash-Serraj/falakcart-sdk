@@ -14,7 +14,7 @@ export default defineConfig({
         outDir: fileURLToPath(new URL('../../public/sdk', import.meta.url)),
         emptyOutDir: false,
         target: 'es2020',
-        sourcemap: true,
+        sourcemap: 'hidden',
         lib: {
             entry: fileURLToPath(new URL('src/index.js', import.meta.url)),
             name: 'falakComponents',
