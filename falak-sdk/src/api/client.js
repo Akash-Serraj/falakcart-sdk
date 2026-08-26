@@ -13,6 +13,16 @@
  *  3. One notification policy, with a ref-counted way to opt out.
  */
 export default class ApiClient {
+    /** Deadline for a single request when the caller passes no signal. */
+    static REQUEST_TIMEOUT_MS = 20000;
+
+    timeoutMessage() {
+        const locale = this.config?.get?.('locale', 'ar');
+        return locale === 'ar'
+            ? 'انتهت مهلة الطلب. يرجى المحاولة مرة أخرى.'
+            : 'The request timed out. Please try again.';
+    }
+
     constructor({ config, event, logger, notify, helpers }) {
         this.config = config;
         this.event = event;
@@ -86,11 +96,25 @@ export default class ApiClient {
                 : url.searchParams.set(key, value);
         });
 
+        /*
+         * Every request has a deadline. A request that never returns (a
+         * wedged single-worker dev server, a dropped mobile connection)
+         * otherwise leaves whatever waited on it stuck — an add-to-cart
+         * button that stays "pending" and ignores every further click. A
+         * timeout turns that into an error the caller can show and recover
+         * from. A caller's own signal still wins.
+         */
+        const canAbort = typeof AbortController !== 'undefined';
+        const controller = options.signal || !canAbort ? null : new AbortController();
+        const timer = controller
+            ? setTimeout(() => controller.abort(), options.timeout ?? ApiClient.REQUEST_TIMEOUT_MS)
+            : null;
+
         const init = {
             method,
             headers: this.headers(options.headers),
             credentials: 'same-origin',
-            signal: options.signal,
+            signal: options.signal ?? controller?.signal,
         };
 
         if (options.body !== undefined && method !== 'GET' && method !== 'HEAD') {
@@ -110,9 +134,12 @@ export default class ApiClient {
         try {
             response = await fetch(url.toString(), init);
             payload = await this.parse(response);
+            if (timer) clearTimeout(timer);
         } catch (error) {
             // Network failure or an aborted request — never reached the server.
             this.event.dispatch('request::failed', { path, method, error });
+            if (timer) clearTimeout(timer);
+            if (error?.name === 'AbortError' && controller) error = Object.assign(new Error(this.timeoutMessage()), { falak: { timeout: true } });
             throw this.fail(error, { path, method });
         }
 

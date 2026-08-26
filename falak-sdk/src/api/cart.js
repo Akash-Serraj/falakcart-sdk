@@ -39,12 +39,28 @@ export default class CartApi extends BaseApi {
         this.summary = null;
         this.discountCode = null;
         this.loaded = false;
+
+        /*
+         * Ordering guard. On a signed-in page load several components ask
+         * for the cart at once, and a shopper can add before those reads
+         * return. A read that started BEFORE a write must never overwrite
+         * the state the write produced: every read and write takes a
+         * sequence number, and a read only absorbs its response if nothing
+         * newer has started since. Without this the add landed on the
+         * server while the badge stayed put — "nothing happened".
+         */
+        this.seq = 0;
+        this.pending = null;
     }
 
     /* ---------------------------------------------------------------- read */
 
     async fetch() {
+        const seq = ++this.seq;
         const response = await this.call('fetch');
+
+        // Superseded by a later read or write: its answer is already stale.
+        if (seq !== this.seq) return { lines: this.lines, summary: this.summary };
 
         this.absorb(response);
         this.event.fetched({ lines: this.lines, summary: this.summary });
@@ -52,11 +68,22 @@ export default class CartApi extends BaseApi {
         return { lines: this.lines, summary: this.summary };
     }
 
-    /** Cached lines; fetches once if nothing has been loaded yet. */
+    /** Cached lines; the first load is shared by every concurrent caller. */
     async items() {
-        if (! this.loaded) await this.fetch();
+        if (! this.loaded) {
+            this.pending = this.pending || this.fetch().finally(() => { this.pending = null; });
+            await this.pending;
+        }
 
         return this.lines;
+    }
+
+    /** Drops the cache and reads again — after sign-in or sign-out. */
+    async refresh() {
+        this.loaded = false;
+        this.pending = null;
+
+        return this.fetch();
     }
 
     /** Total units, for the header badge. */
@@ -113,6 +140,7 @@ export default class CartApi extends BaseApi {
         if (variationId) body.product_variation_id = Number(variationId);
 
         try {
+            this.seq++;
             await this.call('remove', { body });
             await this.fetch();
 
@@ -127,6 +155,7 @@ export default class CartApi extends BaseApi {
 
     async clear() {
         try {
+            this.seq++;
             await this.call('clear');
             await this.fetch();
 
@@ -205,6 +234,7 @@ export default class CartApi extends BaseApi {
         if (code !== null && code !== undefined) body.discount_code = code;
 
         try {
+            this.seq++;
             const response = await this.call('save', { body });
 
             await this.fetch();

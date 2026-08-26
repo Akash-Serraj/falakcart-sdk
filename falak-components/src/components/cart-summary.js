@@ -132,8 +132,7 @@ export default class FalakCartSummary extends FalakElement {
 
         // Whose cart this is just changed: drop the cache and fetch again.
         const reload = () => {
-            // fetch() replaces lines and summary wholesale.
-            this.sdk.cart.fetch().catch(() => this.queueRender());
+            this.sdk.cart.refresh().catch(() => this.queueRender());
         };
 
         this._offs = ['cart::fetched', 'cart::updated', 'cart::coupon.applied', 'cart::coupon.removed']

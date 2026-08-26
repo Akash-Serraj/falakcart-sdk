@@ -169,7 +169,7 @@ export default class FalakAddProductButton extends FalakElement {
 
         if (selector) {
             const scope = this.closest('form') || document;
-            const input = scope.querySelector(selector);
+            const input = [...scope.querySelectorAll(selector)].find(el => this.speaksFor(el));
             const value = Number(input?.value);
 
             if (Number.isFinite(value) && value > 0) return value;
@@ -199,9 +199,23 @@ export default class FalakAddProductButton extends FalakElement {
         if (!selector) return null;
 
         const scope = this.closest('form') || document;
-        const found = scope.querySelector(selector);
+        const found = [...scope.querySelectorAll(selector)].find(el => this.speaksFor(el));
 
         return found && found.variations?.length ? found : null;
+    }
+
+    /**
+     * An element found outside this button's own form may only speak for
+     * this product if it carries the same product-id (or none). Without
+     * this, a related-products card on a variant product's page picked up
+     * the PAGE product's chosen variation and posted a variation that did
+     * not belong to the card's product — every add then failed with
+     * "No query results for model ProductVariation".
+     */
+    speaksFor(el) {
+        const owner = el.getAttribute?.('product-id');
+
+        return !owner || String(owner) === String(this.productId);
     }
 
     /**
