@@ -60,6 +60,16 @@ export default class FalakElement extends HTMLElement {
     disconnectedCallback() {
         (this._teardown || []).forEach(fn => fn());
         this._teardown = [];
+
+        /*
+         * Listeners registered through listen() are gone now, so the next
+         * connectedCallback must be allowed to register them again. Components
+         * guard that registration with `_wired`; a moved element (a listing
+         * that paginates by re-parenting its cards, a slider that clones
+         * slides) came back with the flag still set and no handlers — a button
+         * that rendered perfectly and did nothing when clicked.
+         */
+        this._wired = false;
     }
 
     /**

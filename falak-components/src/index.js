@@ -8,13 +8,22 @@
  * These components carry no CSS of their own. The stylesheet is imported here
  * so one build produces both artifacts, but Vite's library mode EXTRACTS it to
  * falak-components.css rather than injecting it at runtime — the platform links
- * that file at head:end so it is applied before first paint.
+ * that file at head:start — ahead of the theme's stylesheet, inside @layer falak
+ * — so it is applied before first paint and yields to any theme rule.
  */
-import './components.css';
-import './components.chrome.css';
-import './components.account.css';
+import './styles.css';
 
 import FalakQuantityInput from './components/quantity-input.js';
+import FalakAddProductButton from './components/add-product-button.js';
+import FalakAnnouncement from './components/announcement.js';
+import FalakCartSummary from './components/cart-summary.js';
+import FalakCartCoupons from './components/cart-coupons.js';
+import FalakProductOptions from './components/product-options.js';
+import FalakQuickAdd from './components/quick-add.js';
+import FalakWishlistButton from './components/wishlist-button.js';
+import FalakWishlistDrawer from './components/wishlist-drawer.js';
+import FalakCheckout from './components/checkout.js';
+import FalakPaymentStatus from './components/payment-status.js';
 import { FalakAccordion, FalakAccordionHead, FalakAccordionBody } from './components/accordion.js';
 import FalakRatingStars from './components/rating-stars.js';
 import FalakProductCard from './components/product-card.js';
@@ -45,6 +54,7 @@ const REGISTRY = {
 
     // product surface
     'falak-quantity-input': FalakQuantityInput,
+    'falak-add-product-button': FalakAddProductButton,
     'falak-rating-stars': FalakRatingStars,
     'falak-product-card': FalakProductCard,
     'falak-products-list': FalakProductsList,
@@ -56,6 +66,15 @@ const REGISTRY = {
     'falak-accordion-body': FalakAccordionBody,
     'falak-menu': FalakMenu,
     'falak-breadcrumb': FalakBreadcrumb,
+    'falak-announcement': FalakAnnouncement,
+    'falak-cart-summary': FalakCartSummary,
+    'falak-cart-coupons': FalakCartCoupons,
+    'falak-product-options': FalakProductOptions,
+    'falak-quick-add': FalakQuickAdd,
+    'falak-wishlist-button': FalakWishlistButton,
+    'falak-wishlist-drawer': FalakWishlistDrawer,
+    'falak-checkout': FalakCheckout,
+    'falak-payment-status': FalakPaymentStatus,
 
     // footer & trust
     'falak-social': FalakSocial,

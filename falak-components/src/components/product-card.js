@@ -63,7 +63,11 @@ export default class FalakProductCard extends FalakElement {
             price: onSale ? wasPrice : price,
             compareAt: onSale ? price : null,
             currency: product.currency || null,
-            inStock: product.quantity === null || Number(product.quantity) > 0 || !!product.allow_backorders,
+            // In stock while the product OR any of its variants is (checkout
+            // stock-checks the chosen variant, not the product-level number).
+            inStock: product.quantity === null || Number(product.quantity) > 0 || !!product.allow_backorders
+                || (Array.isArray(product.variations) && product.variations.some(v => v.quantity === null || v.quantity === undefined || Number(v.quantity) > 0)),
+            hasVariations: Array.isArray(product.variations) ? product.variations.length > 0 : !!product.has_variations,
             rating: product.average_rating ?? null,
             reviews: product.reviews_count ?? 0,
         };
@@ -95,7 +99,7 @@ export default class FalakProductCard extends FalakElement {
     get showAddButton() { return this.boolAttr('show-add-button'); }
 
     /**
-     * Opt-in wishlist square (`show-wishlist`), the v2 card's companion to the
+     * The wishlist heart (`show-wishlist`, and always beside the buy button) —
      * buy button. Emits `wishlist::toggle` and carries data-wishlist for
      * theme-level delegates, mirroring the buy button's contract.
      */
@@ -169,18 +173,19 @@ export default class FalakProductCard extends FalakElement {
 
                 <div class="f-card__actions">
                     ${this.showAddButton ? `
-                        <button type="button" class="f-card__add"
-                                data-add-to-cart="${product.id}"
-                                ${product.inStock ? '' : 'disabled'}>
+                        <falak-add-product-button product-id="${product.id}"
+                                                  product-status="${product.inStock ? 'sale' : 'out'}"
+                                                  ${product.hasVariations ? 'has-options' : ''}
+                                                  product-name="${this.escape(product.name)}"
+                                                  product-image="${this.escape(product.image || '')}"
+                                                  product-price="${this.escape(this.money(product.price, product.currency))}"
+                                                  button-class="f-card__add"
+                                                  source="${this.escape(this.attr('source') || 'card')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                            <span>${this.escape(this.trans('product.add_to_cart'))}</span>
-                        </button>` : ''}
-                    ${this.showWishlist ? `
-                        <button type="button" class="f-card__wishlist"
-                                data-wishlist="${product.id}"
-                                aria-label="${this.escape(this.trans('product.add_to_wishlist'))}">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                        </button>` : ''}
+                            <span>${this.escape(this.trans(!product.inStock ? 'product.out_of_stock' : (product.hasVariations ? 'product.choose_options' : 'product.add_to_cart')))}</span>
+                        </falak-add-product-button>` : ''}
+                    ${this.showWishlist || this.showAddButton ? `
+                        <falak-wishlist-button product-id="${product.id}" button-class="f-card__wishlist"></falak-wishlist-button>` : ''}
                 </div>
             </article>`;
 
@@ -204,21 +209,13 @@ export default class FalakProductCard extends FalakElement {
         this._wired = true;
 
         this.listen(this, 'click', event => {
-            if (event.target.closest('.f-card__add')) {
-                this.emitBus('cart::add', {
-                    productId: this.product?.id,
-                    source: this.attr('source') || 'card',
-                });
-                return;
-            }
+            // The add action is <falak-add-product-button>, which performs the
+            // add itself. It is deliberately NOT re-announced as `cart::add`
+            // here: a theme answering that bus event would add a second time.
+            if (event.target.closest('falak-add-product-button')) return;
 
-            if (event.target.closest('.f-card__wishlist')) {
-                this.emitBus('wishlist::toggle', {
-                    productId: this.product?.id,
-                    source: this.attr('source') || 'card',
-                });
-                return;
-            }
+            // The heart is <falak-wishlist-button>; it toggles itself.
+            if (event.target.closest('falak-wishlist-button')) return;
 
             if (!event.target.closest('.f-card__link')) return;
 

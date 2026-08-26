@@ -602,3 +602,82 @@ body.f-modal-open { overflow: hidden; }
 
 /* Slightly smaller than the footer set — this is a secondary action. */
 .f-social--share .f-social__link { inline-size: 2rem; block-size: 2rem; }
+
+/* ========================================================================
+   Announcement bar
+   A full-width strip above the header. Short text sits centred; text
+   wider than the viewport becomes a marquee that follows the page
+   direction and pauses on hover. Colours default to the primary but are
+   plain custom properties for a theme to override.
+   ======================================================================== */
+
+.f-announce {
+    display: block;
+    background: var(--f-announce-bg, var(--color-primary, #1d9e75));
+    color: var(--f-announce-fg, var(--color-on-primary, #fff));
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.f-announce[hidden] { display: none; }
+
+.f-announce__inner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.4rem;
+    padding: 0.35rem 2.5rem;
+    overflow: hidden;
+    text-align: center;
+}
+
+.f-announce__text,
+.f-announce__link {
+    color: inherit;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.f-announce__link:hover { text-decoration: underline; }
+
+/* Marquee: the track holds the message twice so the loop is seamless. */
+.f-announce--scroll .f-announce__inner { justify-content: flex-start; padding-inline: 0; }
+.f-announce__track {
+    display: inline-flex;
+    white-space: nowrap;
+    will-change: transform;
+    animation: f-announce-ltr var(--f-announce-duration, 18s) linear infinite;
+}
+.f-announce__track > * { padding-inline-end: 4rem; }
+.f-announce[dir="rtl"] .f-announce__track,
+[dir="rtl"] .f-announce__track { animation-name: f-announce-rtl; }
+.f-announce__track:hover { animation-play-state: paused; }
+
+@keyframes f-announce-ltr { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes f-announce-rtl { from { transform: translateX(0); } to { transform: translateX(50%); } }
+
+.f-announce__close {
+    position: absolute;
+    inset-inline-end: 1rem;
+    top: 50%;
+    translate: 0 -50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.75;
+}
+.f-announce__close:hover { opacity: 1; background: rgba(255, 255, 255, 0.15); }
+.f-announce--scroll .f-announce__close { inset-inline-end: 0.5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+    .f-announce__track { animation: none; }
+    .f-announce--scroll .f-announce__inner { justify-content: center; overflow-x: auto; }
+}

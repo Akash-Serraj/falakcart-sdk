@@ -1,0 +1,732 @@
+import FalakElement from '../base.js';
+
+/**
+ * <falak-checkout></falak-checkout>
+ * <falak-checkout thank-you-url="/thank-you/{order}" cart-url="/cart"></falak-checkout>
+ *
+ * The checkout, the way Salla walks it: the signed-in customer at the top,
+ * then delivery (shipping method + address), then payment, then review and
+ * "Place order" — with the order summary (lines, coupon, totals) beside it.
+ *
+ * Data comes from falak.checkout and falak.cart; nothing is hard-coded to a
+ * store. Shipping methods are whatever the merchant enabled — carrier
+ * gateways (countries/cities from the carrier) or the merchant's own
+ * couriers (their own country/city lists) — and payment methods likewise,
+ * with cash-on-delivery offered only when the chosen courier supports it.
+ * Totals are always the API's (`calculate-total`), never summed here.
+ *
+ * A guest sees a sign-in card (the login modal) and the checkout resumes
+ * on `auth::logged.in`. Placing the order either redirects to the payment
+ * gateway (`gateway_response.url`) or lands on the thank-you page.
+ *
+ * | attribute     | role                                                    |
+ * | thank-you-url | where a placed order goes; `{order}` = order number     |
+ * | cart-url      | back link (default /cart)                               |
+ */
+export default class FalakCheckout extends FalakElement {
+    static observedAttributes = ['thank-you-url', 'cart-url'];
+
+    static COUNTRY_NAMES = {
+        SA: ['Saudi Arabia', 'المملكة العربية السعودية'], AE: ['United Arab Emirates', 'الإمارات العربية المتحدة'],
+        KW: ['Kuwait', 'الكويت'], OM: ['Oman', 'عُمان'], BH: ['Bahrain', 'البحرين'], QA: ['Qatar', 'قطر'],
+        EG: ['Egypt', 'مصر'], JO: ['Jordan', 'الأردن'], IQ: ['Iraq', 'العراق'], LB: ['Lebanon', 'لبنان'],
+        MA: ['Morocco', 'المغرب'], TR: ['Türkiye', 'تركيا'], PK: ['Pakistan', 'باكستان'], IN: ['India', 'الهند'],
+        GB: ['United Kingdom', 'المملكة المتحدة'], US: ['United States', 'الولايات المتحدة'],
+    };
+
+    static NEEDS_DISTRICTS = ['logestechs', 'delex'];
+    static NEEDS_NATIONAL_ADDRESS = ['fastcoo'];
+
+    get thankYouUrl() { return this.attr('thank-you-url', '/thank-you/{order}'); }
+    get cartUrl() { return this.attr('cart-url', '/cart'); }
+    get isRtl() { return this.sdk.lang.locale === 'ar'; }
+
+    /* ------------------------------------------------------------- state */
+
+    initialState() {
+        const user = this.sdk.auth.user || {};
+
+        return {
+            step: 1,                 // 1 delivery, 2 payment, 3 review
+            loading: true,
+            error: '',
+            shippingMethods: [],
+            paymentMethods: [],
+            method: null,            // chosen shipping method (object)
+            countries: [],           // [{code, name}]
+            cities: [],              // [{value, name}]
+            districts: [],           // [{id, name, nationalAddress?}]
+            citiesLoading: false,
+            form: {
+                name: user.name || '',
+                phone: user.phone || '',
+                email: user.email || '',
+                country: '',
+                city: '',
+                cityName: '',
+                district: '',
+                districtName: '',
+                nationalAddress: '',
+                street: '',
+                postal: '',
+                notes: '',
+            },
+            payment: null,           // chosen payment method id
+            totals: null,
+            calculating: false,
+            placing: false,
+        };
+    }
+
+    get hasShipping() { return this.state.shippingMethods.length > 0; }
+    get isCod() { return this.paymentMethod()?.code === 'cash_on_delivery'; }
+
+    paymentMethod() {
+        return this.state.paymentMethods.find(m => String(m.id) === String(this.state.payment)) || null;
+    }
+
+    /** COD only when the courier says so (carrier gateways decide server-side). */
+    eligiblePaymentMethods() {
+        const method = this.state.method;
+
+        return this.state.paymentMethods.filter(m => {
+            if (m.code !== 'cash_on_delivery') return true;
+            if (!this.hasShipping) return false;
+            if (method?.shipment_type === 'private_courier') return this.truthy(method.cash_on_delivery);
+            return true;
+        });
+    }
+
+    truthy(value) { return value === true || value === 1 || value === '1'; }
+
+    countryName(code) {
+        const known = FalakCheckout.COUNTRY_NAMES[code];
+        return known ? known[this.isRtl ? 1 : 0] : code;
+    }
+
+    /* ------------------------------------------------------------ render */
+
+    render() {
+        this.classList.add('f-checkout');
+
+        if (!this.state) this.state = this.initialState();
+
+        if (!this.sdk.auth.isLoggedIn()) {
+            this.innerHTML = this.signInHtml();
+            return;
+        }
+
+        this.syncForm();
+
+        this.innerHTML = `
+            <div class="f-checkout__layout">
+                <main class="f-checkout__main">
+                    ${this.customerHtml()}
+                    ${this.state.loading ? `<div class="f-checkout__loading"><span class="f-modal__spinner" aria-hidden="true"></span></div>` : `
+                        ${this.state.error ? `<p class="f-checkout__error" role="alert">${this.escape(this.state.error)}</p>` : ''}
+                        ${this.deliveryHtml()}
+                        ${this.paymentHtml()}
+                        ${this.reviewHtml()}`}
+                </main>
+                <aside class="f-checkout__aside">
+                    ${this.summaryHtml()}
+                </aside>
+            </div>`;
+    }
+
+    signInHtml() {
+        return `
+            <div class="f-checkout__signin">
+                <h2 class="f-checkout__title">${this.escape(this.trans('checkout.sign_in_title'))}</h2>
+                <p class="f-checkout__hint">${this.escape(this.trans('checkout.sign_in_hint'))}</p>
+                <button type="button" class="f-btn f-btn--solid f-btn--primary" data-checkout-signin>${this.escape(this.trans('auth.login'))}</button>
+                <a class="f-checkout__back" href="${this.escape(this.cartUrl)}">${this.escape(this.trans('checkout.back_to_cart'))}</a>
+            </div>`;
+    }
+
+    customerHtml() {
+        const user = this.sdk.auth.user || {};
+
+        return `
+            <section class="f-checkout__step f-checkout__step--done" data-checkout-customer>
+                <header class="f-checkout__step-head">
+                    <span class="f-checkout__step-icon" aria-hidden="true">${FalakCheckout.ICONS.user}</span>
+                    <div>
+                        <h3 class="f-checkout__step-title">${this.escape(this.trans('checkout.welcome', { name: user.name || '' }))}</h3>
+                        ${user.phone ? `<small class="f-checkout__step-sub" dir="ltr">${this.escape(user.phone)}</small>` : ''}
+                    </div>
+                </header>
+            </section>`;
+    }
+
+    stepHead(number, title, sub, icon, state) {
+        return `
+            <header class="f-checkout__step-head">
+                <span class="f-checkout__step-icon${state === 'active' ? ' is-active' : ''}" aria-hidden="true">${icon}</span>
+                <div class="f-checkout__step-text">
+                    <h3 class="f-checkout__step-title">${this.escape(title)}</h3>
+                    ${sub ? `<small class="f-checkout__step-sub">${this.escape(sub)}</small>` : ''}
+                </div>
+                ${state === 'done' ? `<button type="button" class="f-btn f-btn--outline f-btn--light-outline f-btn--small f-checkout__edit" data-checkout-goto="${number}">${this.escape(this.trans('checkout.edit'))}</button>` : ''}
+            </header>`;
+    }
+
+    stepState(number) {
+        if (this.state.step === number) return 'active';
+        return this.state.step > number ? 'done' : 'todo';
+    }
+
+    /* ---- delivery */
+
+    deliveryHtml() {
+        if (!this.hasShipping) return '';
+
+        const state = this.stepState(1);
+        const f = this.state.form;
+        const method = this.state.method;
+
+        const summary = state === 'done' && method
+            ? `<p class="f-checkout__done-line">${this.escape(method.name)} · ${this.escape([f.street, f.districtName, f.cityName || f.city, this.countryName(f.country)].filter(Boolean).join(', '))}</p>`
+            : '';
+
+        return `
+            <section class="f-checkout__step f-checkout__step--${state}" data-checkout-step="1">
+                ${this.stepHead(1, this.trans('checkout.delivery_title'), this.trans('checkout.delivery_hint'), FalakCheckout.ICONS.truck, state)}
+                ${summary}
+                ${state === 'active' ? `
+                <div class="f-checkout__body">
+                    <div class="f-checkout__methods" role="radiogroup" aria-label="${this.escape(this.trans('checkout.shipping_method'))}">
+                        ${this.state.shippingMethods.map(m => this.methodCardHtml(m)).join('')}
+                    </div>
+                    ${method ? this.addressFormHtml() : `<p class="f-checkout__hint">${this.escape(this.trans('checkout.choose_shipping'))}</p>`}
+                </div>` : ''}
+            </section>`;
+    }
+
+    methodCardHtml(m) {
+        const chosen = this.state.method && String(this.state.method.id) === String(m.id) && this.state.method.shipment_type === m.shipment_type;
+        const cod = this.truthy(m.cash_on_delivery);
+
+        return `
+            <label class="f-checkout__method${chosen ? ' is-selected' : ''}">
+                <input type="radio" name="shipping_method" value="${m.shipment_type}:${m.id}" ${chosen ? 'checked' : ''} data-checkout-method>
+                ${m.logo ? `<img class="f-checkout__method-logo" src="${this.escape(m.logo)}" alt="">` : `<span class="f-checkout__method-logo f-checkout__method-logo--empty" aria-hidden="true">${FalakCheckout.ICONS.box}</span>`}
+                <span class="f-checkout__method-text">
+                    <b>${this.escape(m.name)}</b>
+                    ${m.description ? `<small>${this.escape(m.description)}</small>` : ''}
+                    ${m.shipping_time ? `<small>${this.escape(m.shipping_time)}</small>` : ''}
+                    ${cod ? `<small class="f-checkout__tag">${this.escape(this.trans('checkout.cod_available'))}</small>` : ''}
+                </span>
+            </label>`;
+    }
+
+    addressFormHtml() {
+        const f = this.state.form;
+        const m = this.state.method;
+        const isCourier = m.shipment_type === 'private_courier';
+        const freeCity = isCourier && this.truthy(m.all_cities);
+        const needsDistricts = !isCourier && FalakCheckout.NEEDS_DISTRICTS.includes(m.code);
+        const needsNational = !isCourier && FalakCheckout.NEEDS_NATIONAL_ADDRESS.includes(m.code);
+
+        const countryOptions = this.state.countries.map(c =>
+            `<option value="${this.escape(c.code)}" ${c.code === f.country ? 'selected' : ''}>${this.escape(c.name)}</option>`).join('');
+
+        // City is a free field for now: typed, with the carrier's or courier's
+        // list offered as suggestions when there is one. Optional.
+        const suggestions = this.state.cities.length
+            ? `<datalist id="f-checkout-cities">${this.state.cities.map(c => `<option value="${this.escape(c.name)}"></option>`).join('')}</datalist>`
+            : '';
+        const cityField = `
+            <input class="f-input" type="text" name="city" value="${this.escape(f.cityName || f.city)}"
+                   placeholder="${this.escape(this.state.citiesLoading ? this.trans('common.loading') : this.trans('checkout.city'))}"
+                   ${suggestions ? 'list="f-checkout-cities"' : ''} autocomplete="address-level2" data-checkout-field="cityName">
+            ${suggestions}`;
+        void freeCity;
+
+        return `
+            <form class="f-checkout__form" data-checkout-address novalidate>
+                <div class="f-checkout__grid">
+                    ${this.field('name', 'checkout.full_name', f.name, 'text', true)}
+                    ${this.field('phone', 'checkout.phone', f.phone, 'tel', true, 'ltr')}
+                    ${this.field('email', 'checkout.email', f.email, 'email', false, 'ltr')}
+                    <label class="f-field">
+                        <span class="f-field__label">${this.escape(this.trans('checkout.country'))} *</span>
+                        <select class="f-input" name="country" required data-checkout-country>
+                            <option value="">${this.escape(this.trans('checkout.choose_country'))}</option>
+                            ${countryOptions}
+                        </select>
+                    </label>
+                    <label class="f-field">
+                        <span class="f-field__label">${this.escape(this.trans('checkout.city'))}</span>
+                        ${cityField}
+                    </label>
+                    ${needsDistricts && this.state.districts.length ? `
+                    <label class="f-field">
+                        <span class="f-field__label">${this.escape(this.trans('checkout.district'))} *</span>
+                        <select class="f-input" name="district" required data-checkout-district>
+                            <option value="">${this.escape(this.trans('checkout.choose_district'))}</option>
+                            ${this.state.districts.map(d => `<option value="${this.escape(d.id)}" ${String(d.id) === String(f.district) ? 'selected' : ''}>${this.escape(d.name)}</option>`).join('')}
+                        </select>
+                    </label>` : ''}
+                    ${needsNational ? this.field('nationalAddress', 'checkout.national_address', f.nationalAddress, 'text', true, 'ltr', 'ABCD1234') : ''}
+                    ${this.field('street', 'checkout.street', f.street, 'text', true, null, null, 'f-field--wide')}
+                    ${this.field('postal', 'checkout.postal_code', f.postal, 'text', false, 'ltr')}
+                </div>
+                <label class="f-field f-field--wide">
+                    <span class="f-field__label">${this.escape(this.trans('checkout.notes'))}</span>
+                    <textarea class="f-input" name="notes" rows="2" data-checkout-field="notes" placeholder="${this.escape(this.trans('checkout.notes_hint'))}">${this.escape(f.notes)}</textarea>
+                </label>
+                <p class="f-checkout__error" role="alert" data-checkout-form-error hidden></p>
+                <button type="submit" class="f-btn f-btn--solid f-btn--primary f-btn--wide">${this.escape(this.trans('checkout.continue_to_payment'))}</button>
+            </form>`;
+    }
+
+    field(name, key, value, type, required, dir = null, placeholder = null, extra = '') {
+        return `
+            <label class="f-field ${extra}">
+                <span class="f-field__label">${this.escape(this.trans(key))}${required ? ' *' : ''}</span>
+                <input class="f-input" type="${type}" name="${name}" value="${this.escape(value || '')}" ${required ? 'required' : ''}
+                       ${dir ? `dir="${dir}"` : ''} ${placeholder ? `placeholder="${this.escape(placeholder)}"` : ''} data-checkout-field="${name}">
+            </label>`;
+    }
+
+    /* ---- payment */
+
+    paymentHtml() {
+        const number = 2;
+        const state = this.stepState(number);
+        const methods = this.eligiblePaymentMethods();
+        const chosen = this.paymentMethod();
+
+        return `
+            <section class="f-checkout__step f-checkout__step--${state}" data-checkout-step="2">
+                ${this.stepHead(number, this.trans('checkout.payment_title'), this.trans('checkout.payment_hint'), FalakCheckout.ICONS.card, state)}
+                ${state === 'done' && chosen ? `<p class="f-checkout__done-line">${this.escape(chosen.name)}</p>` : ''}
+                ${state === 'active' ? `
+                <div class="f-checkout__body">
+                    ${methods.length ? `
+                    <div class="f-checkout__methods" role="radiogroup" aria-label="${this.escape(this.trans('checkout.payment_method'))}">
+                        ${methods.map(m => `
+                            <label class="f-checkout__method${String(m.id) === String(this.state.payment) ? ' is-selected' : ''}">
+                                <input type="radio" name="payment_method" value="${this.escape(m.id)}" ${String(m.id) === String(this.state.payment) ? 'checked' : ''} data-checkout-payment>
+                                ${m.logo ? `<img class="f-checkout__method-logo" src="${this.escape(m.logo)}" alt="">` : `<span class="f-checkout__method-logo f-checkout__method-logo--empty" aria-hidden="true">${FalakCheckout.ICONS.card}</span>`}
+                                <span class="f-checkout__method-text"><b>${this.escape(m.name)}</b>${m.description ? `<small>${this.escape(m.description)}</small>` : ''}</span>
+                            </label>`).join('')}
+                    </div>
+                    <button type="button" class="f-btn f-btn--solid f-btn--primary f-btn--wide" data-checkout-review ${this.state.payment ? '' : 'disabled'}>${this.escape(this.trans('checkout.review_order'))}</button>`
+                    : `<p class="f-checkout__error" role="alert">${this.escape(this.trans('checkout.no_payment_methods'))}</p>`}
+                </div>` : ''}
+            </section>`;
+    }
+
+    /* ---- review */
+
+    reviewHtml() {
+        const state = this.stepState(3);
+        if (state !== 'active') {
+            return `<section class="f-checkout__step f-checkout__step--todo" data-checkout-step="3">${this.stepHead(3, this.trans('checkout.review_title'), '', FalakCheckout.ICONS.check, 'todo')}</section>`;
+        }
+
+        const t = this.state.totals;
+        const f = this.state.form;
+
+        return `
+            <section class="f-checkout__step f-checkout__step--active" data-checkout-step="3">
+                ${this.stepHead(3, this.trans('checkout.review_title'), this.trans('checkout.review_hint'), FalakCheckout.ICONS.check, 'active')}
+                <div class="f-checkout__body">
+                    ${this.hasShipping ? `
+                    <dl class="f-checkout__review">
+                        <div><dt>${this.escape(this.trans('checkout.deliver_to'))}</dt><dd>${this.escape(f.name)} · <span dir="ltr">${this.escape(f.phone)}</span><br>${this.escape([f.street, f.districtName, f.cityName || f.city, this.countryName(f.country)].filter(Boolean).join(', '))}</dd></div>
+                        <div><dt>${this.escape(this.trans('checkout.shipping_method'))}</dt><dd>${this.escape(this.state.method?.name || '')}</dd></div>
+                        <div><dt>${this.escape(this.trans('checkout.payment_method'))}</dt><dd>${this.escape(this.paymentMethod()?.name || '')}</dd></div>
+                    </dl>` : ''}
+                    ${this.state.calculating || !t
+                        ? `<div class="f-checkout__loading"><span class="f-modal__spinner" aria-hidden="true"></span></div>`
+                        : `<p class="f-checkout__total-line">${this.escape(this.trans('checkout.total_to_pay'))} <b>${this.escape(this.money(t.total, t.currency))}</b></p>
+                           <button type="button" class="f-btn f-btn--solid f-btn--primary f-btn--wide f-btn--large" data-checkout-place ${this.state.placing ? 'disabled' : ''}>
+                               ${this.state.placing ? '<span class="f-btn__loader" aria-hidden="true"></span>' : ''}
+                               ${this.escape(this.isCod ? this.trans('checkout.place_order') : this.trans('checkout.pay_now'))}
+                           </button>`}
+                </div>
+            </section>`;
+    }
+
+    /* ---- summary column */
+
+    summaryHtml() {
+        const lines = this.sdk.cart.lines || [];
+        const t = this.state.totals;
+        const currency = t?.currency;
+
+        const row = (key, amount, cls = '') => `<div class="f-checkout__row ${cls}"><span>${this.escape(this.trans(key))}</span><span>${this.escape(this.money(amount, currency))}</span></div>`;
+
+        return `
+            <div class="f-checkout__summary">
+                <h3 class="f-checkout__summary-title">${this.escape(this.trans('checkout.order_details'))} <span class="f-checkout__count">${lines.reduce((s, l) => s + Number(l.quantity || 0), 0)}</span></h3>
+                <ul class="f-checkout__lines">
+                    ${lines.map(l => `
+                        <li class="f-checkout__line">
+                            <span class="f-checkout__line-media">${l.image ? `<img src="${this.escape(l.image)}" alt="">` : ''}<b class="f-checkout__line-qty">${l.quantity}</b></span>
+                            <span class="f-checkout__line-text"><span class="f-checkout__line-name">${this.escape(l.name)}</span>${l.variation?.attributes ? `<small>${this.escape(Object.values(l.variation.attributes).join(' · '))}</small>` : ''}</span>
+                            <span class="f-checkout__line-total">${this.escape(this.money(l.total, currency))}</span>
+                        </li>`).join('')}
+                </ul>
+                <falak-cart-coupons class="f-checkout__coupon"></falak-cart-coupons>
+                <div class="f-checkout__totals">
+                    ${t ? `
+                        ${row('cart.subtotal', t.subtotal)}
+                        ${Number(t.discount_amount) > 0 ? row('cart.discount', -Number(t.discount_amount), 'f-checkout__row--discount') : ''}
+                        ${this.hasShipping ? row('checkout.shipping', t.shipping_cost) : ''}
+                        ${Number(t.cod_fee) > 0 ? row('checkout.cod_fee', t.cod_fee) : ''}
+                        ${Number(t.tax_amount) > 0 ? row('checkout.tax', t.tax_amount) : ''}
+                        ${row('checkout.total', t.total, 'f-checkout__row--total')}`
+                    : this.cartTotalsHtml(lines, row)}
+                </div>
+                <a class="f-checkout__back" href="${this.escape(this.cartUrl)}">${this.escape(this.trans('checkout.back_to_cart'))}</a>
+            </div>`;
+    }
+
+    /** Before the API totals exist: what the cart itself already knows. */
+    cartTotalsHtml(lines, row) {
+        const s = this.sdk.cart.summary || {};
+        const subtotal = Number(s.subtotal ?? lines.reduce((sum, l) => sum + Number(l.total || 0), 0));
+        const discount = Number(s.coupon_discount || 0) + Number(s.special_offer_discount || 0) + Number(s.product_discount || 0);
+
+        return `${row('cart.subtotal', subtotal)}
+            ${discount > 0 ? row('cart.discount', -discount, 'f-checkout__row--discount') : ''}
+            ${discount > 0 ? row('checkout.total', Number(s.total ?? (subtotal - discount)), 'f-checkout__row--total') : ''}
+            <p class="f-checkout__hint">${this.escape(this.trans('checkout.totals_after_address'))}</p>`;
+    }
+
+    /* --------------------------------------------------------- behaviour */
+
+    afterRender() {
+        if (this._wired) return;
+        this._wired = true;
+
+        this._offs = [
+            this.sdk.event.on('auth::logged.in', () => { this.state = null; this.render(); this.load(); }),
+            this.sdk.event.on('auth::logged.out', () => { this.state = null; this.render(); }),
+            this.sdk.event.on('cart::updated', () => this.refreshTotals()),
+            this.sdk.event.on('cart::coupon.applied', () => this.refreshTotals()),
+            this.sdk.event.on('cart::coupon.removed', () => this.refreshTotals()),
+        ];
+
+        this.listen(this, 'click', event => {
+            const t = event.target;
+            if (t.closest('[data-checkout-signin]')) { this.sdk.event.dispatch('auth::required'); return; }
+            const goto = t.closest('[data-checkout-goto]');
+            if (goto) { this.setStep(Number(goto.getAttribute('data-checkout-goto'))); return; }
+            if (t.closest('[data-checkout-review]')) { this.goReview(); return; }
+            if (t.closest('[data-checkout-place]')) { this.place(); }
+        });
+
+        this.listen(this, 'change', event => {
+            const t = event.target;
+            if (t.matches('[data-checkout-method]')) { this.chooseMethod(t.value); return; }
+            if (t.matches('[data-checkout-country]')) { this.chooseCountry(t.value); return; }
+            if (t.matches('[data-checkout-city]')) { this.chooseCity(t.value, t.options[t.selectedIndex]?.text || ''); return; }
+            if (t.matches('[data-checkout-district]')) { this.chooseDistrict(t.value, t.options[t.selectedIndex]?.text || ''); return; }
+            if (t.matches('[data-checkout-payment]')) { this.state.payment = t.value; this.render(); }
+        });
+
+        this.listen(this, 'submit', event => {
+            if (!event.target.matches('[data-checkout-address]')) return;
+            event.preventDefault();
+            this.submitAddress(event.target);
+        });
+
+        if (this.sdk.auth.isLoggedIn()) this.load();
+    }
+
+    disconnectedCallback() {
+        (this._offs || []).forEach(off => typeof off === 'function' && off());
+        super.disconnectedCallback();
+    }
+
+    /** Text fields are read back before any re-render, so typing survives. */
+    syncForm() {
+        this.querySelectorAll('[data-checkout-field]').forEach(input => {
+            this.state.form[input.getAttribute('data-checkout-field')] = input.value;
+        });
+    }
+
+    async load() {
+        this.state = this.state || this.initialState();
+        this.state.loading = true;
+        this.render();
+
+        try {
+            const [shipping, payments] = await Promise.all([
+                this.sdk.api.withoutNotifier(() => this.sdk.checkout.shipmentGateways()),
+                this.sdk.api.withoutNotifier(() => this.sdk.checkout.paymentGateways()),
+                this.sdk.cart.items(),
+            ]);
+
+            this.state.shippingMethods = shipping;
+            this.state.paymentMethods = payments;
+            this.state.loading = false;
+
+            if (!this.hasShipping) this.state.step = 2;
+            if (this.state.shippingMethods.length === 1) await this.chooseMethod(`${shipping[0].shipment_type}:${shipping[0].id}`, false);
+
+            if (!this.state.payment) this.state.payment = this.eligiblePaymentMethods()[0]?.id ?? null;
+        } catch (error) {
+            this.state.loading = false;
+            this.state.error = error?.message || this.trans('common.load_failed');
+        }
+
+        this.render();
+    }
+
+    setStep(step) {
+        this.syncForm();
+        this.state.step = step;
+        this.render();
+        this.querySelector(`[data-checkout-step="${step}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async chooseMethod(value, rerender = true) {
+        const [type, id] = String(value).split(':');
+        const method = this.state.shippingMethods.find(m => m.shipment_type === type && String(m.id) === id) || null;
+
+        this.syncForm();
+        this.state.method = method;
+        this.state.countries = [];
+        this.state.cities = [];
+        this.state.districts = [];
+        Object.assign(this.state.form, { country: '', city: '', cityName: '', district: '', districtName: '', nationalAddress: '' });
+
+        if (!method) { if (rerender) this.render(); return; }
+
+        if (method.shipment_type === 'private_courier') {
+            const codes = this.asList(method.countries);
+            this.state.countries = codes.map(code => ({ code, name: this.countryName(code) }));
+        } else {
+            if (rerender) this.render();
+            try {
+                const list = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.countries(method.code));
+                this.state.countries = list.map(c => ({
+                    code: c.Code ?? c.code ?? c.value ?? c,
+                    name: (this.isRtl && (c.NameAr ?? c.name_ar)) || c.Name || c.name || c.code || c,
+                }));
+            } catch (error) {
+                this.state.error = error?.message || this.trans('common.load_failed');
+            }
+        }
+
+        // One country: choose it for the shopper.
+        if (this.state.countries.length === 1) {
+            this.state.form.country = this.state.countries[0].code;
+            await this.loadCities();
+        }
+
+        // Keep the payment choice valid for this courier.
+        const eligible = this.eligiblePaymentMethods();
+        if (!eligible.some(m => String(m.id) === String(this.state.payment))) this.state.payment = eligible[0]?.id ?? null;
+
+        if (rerender) this.render();
+    }
+
+    asList(value) {
+        if (Array.isArray(value)) return value;
+        if (typeof value === 'string') { try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch (e) { return []; } }
+        return [];
+    }
+
+    async chooseCountry(code) {
+        this.syncForm();
+        this.state.form.country = code;
+        Object.assign(this.state.form, { city: '', cityName: '', district: '', districtName: '' });
+        this.state.cities = [];
+        this.state.districts = [];
+        await this.loadCities();
+        this.render();
+    }
+
+    async loadCities() {
+        const method = this.state.method;
+        const country = this.state.form.country;
+        if (!method || !country) return;
+
+        if (method.shipment_type === 'private_courier') {
+            if (this.truthy(method.all_cities)) { this.state.cities = []; return; }
+            const excluded = this.asList(method.excluded_cities);
+            this.state.cities = this.asList(method.cities).filter(c => !excluded.includes(c)).map(c => ({ value: c, name: c }));
+            return;
+        }
+
+        this.state.citiesLoading = true;
+        this.render();
+
+        try {
+            const raw = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.cities(method.code, country));
+            const excluded = this.asList(method.excluded_cities);
+            this.state.cities = raw
+                .map(c => typeof c === 'string' ? { value: c, name: c } : { value: c.value ?? c.id ?? c.name, name: (this.isRtl && c.name_ar) || c.name || c.value })
+                .filter(c => !excluded.includes(c.value));
+        } catch (error) {
+            this.state.cities = [];
+            this.state.error = error?.message || this.trans('common.load_failed');
+        } finally {
+            this.state.citiesLoading = false;
+        }
+    }
+
+    async chooseCity(value, label) {
+        this.syncForm();
+        this.state.form.city = value;
+        this.state.form.cityName = label;
+        this.state.form.district = '';
+        this.state.form.districtName = '';
+        this.state.districts = [];
+
+        const method = this.state.method;
+        if (method && method.shipment_type !== 'private_courier' && FalakCheckout.NEEDS_DISTRICTS.includes(method.code) && value) {
+            try {
+                const raw = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.districts(method.code, value, label));
+                this.state.districts = raw.map(d => ({ id: d.id ?? d.value ?? d.name, name: (this.isRtl && d.arabicName) || d.name || d.value, nationalAddress: d.nationalAddress }));
+            } catch (error) { this.state.districts = []; }
+        }
+
+        this.render();
+    }
+
+    chooseDistrict(value, label) {
+        this.syncForm();
+        this.state.form.district = value;
+        this.state.form.districtName = label;
+        const district = this.state.districts.find(d => String(d.id) === String(value));
+        if (district?.nationalAddress && !this.state.form.nationalAddress) this.state.form.nationalAddress = String(district.nationalAddress);
+        this.render();
+    }
+
+    submitAddress(form) {
+        this.syncForm();
+        const f = this.state.form;
+        const error = form.querySelector('[data-checkout-form-error]');
+        const missing = [];
+
+        if (!f.name.trim()) missing.push(this.trans('checkout.full_name'));
+        if (!f.phone.trim()) missing.push(this.trans('checkout.phone'));
+        if (!f.country) missing.push(this.trans('checkout.country'));
+        if (!f.street.trim()) missing.push(this.trans('checkout.street'));
+        if (this.state.districts.length && !f.district) missing.push(this.trans('checkout.district'));
+
+        if (missing.length) {
+            error.textContent = this.trans('checkout.fill_required', { fields: missing.join(', ') });
+            error.hidden = false;
+            form.querySelector(':invalid, [required]:placeholder-shown')?.focus();
+            return;
+        }
+
+        error.hidden = true;
+        this.setStep(2);
+    }
+
+    shippingAddress() {
+        const f = this.state.form;
+        // A typed city that matches a known one carries its id too.
+        const known = this.state.cities.find(c => String(c.name).toLowerCase() === String(f.cityName || '').trim().toLowerCase());
+        f.city = known ? known.value : '';
+        const address = {
+            name: f.name.trim(),
+            phone: f.phone.trim(),
+            email: f.email.trim(),
+            address: f.street.trim(),
+            city: f.cityName || f.city,
+            country: f.country,
+            postal_code: f.postal.trim(),
+        };
+        if (f.city) { address.city_id = f.city; address.cityId = Number(f.city) || f.city; }
+        if (f.district) { address.village_id = Number(f.district) || f.district; address.villageId = address.village_id; address.district_name = f.districtName; }
+        if (f.nationalAddress) { address.national_address = f.nationalAddress.trim(); address.nationalAddress = address.national_address; }
+
+        return address;
+    }
+
+    /** Shipment fields shared by calculate-total and checkout. */
+    shipmentPayload() {
+        if (!this.hasShipping || !this.state.method) return {};
+
+        return {
+            shipment_type: this.state.method.shipment_type,
+            shipment_method_id: this.state.method.id,
+            shipping_address: this.shippingAddress(),
+        };
+    }
+
+    async goReview() {
+        if (!this.state.payment) return;
+        this.setStep(3);
+        await this.refreshTotals();
+    }
+
+    async refreshTotals() {
+        if (!this.state || this.state.step !== 3 || !this.sdk.auth.isLoggedIn()) return;
+
+        this.state.calculating = true;
+        this.state.error = '';
+        this.render();
+
+        try {
+            this.state.totals = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.calculateTotal({
+                payment_type: this.isCod ? 'cod' : 'online',
+                ...this.shipmentPayload(),
+            }));
+        } catch (error) {
+            this.state.totals = null;
+            this.state.error = error?.message || this.trans('common.load_failed');
+            this.state.step = this.hasShipping ? 1 : 2;
+        } finally {
+            this.state.calculating = false;
+            this.render();
+        }
+    }
+
+    async place() {
+        if (this.state.placing) return;
+
+        this.state.placing = true;
+        this.state.error = '';
+        this.render();
+
+        try {
+            const f = this.state.form;
+            const shipment = this.shipmentPayload();
+            const billing = shipment.shipping_address || { name: f.name, phone: f.phone, email: f.email };
+
+            const response = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.placeOrder({
+                payment_method_id: this.state.payment,
+                billing_address: billing,
+                customer_notes: f.notes.trim(),
+                ...shipment,
+            }));
+
+            const url = response?.gateway_response?.url;
+            const number = response?.order_number ?? response?.order?.order_number;
+
+            // The cart is spent either way; the header follows.
+            this.sdk.cart.fetch().catch(() => {});
+            this.emit('placed', { orderNumber: number, redirectUrl: url || null });
+
+            if (url) { window.location.assign(url); return; }
+            if (number) { window.location.assign(this.thankYouUrl.replace('{order}', encodeURIComponent(number))); return; }
+
+            this.state.error = response?.message || this.trans('checkout.failed');
+        } catch (error) {
+            this.state.error = error?.message || this.trans('checkout.failed');
+        } finally {
+            this.state.placing = false;
+            this.render();
+        }
+    }
+
+    static ICONS = {
+        user: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 15.5c-1.4.8-5.1 2.6-2.9 4.7 1.1 1 2.3 1.8 3.9 1.8h8.8c1.5 0 2.8-.8 3.9-1.8 2.3-2.2-1.4-3.9-2.9-4.7a11.7 11.7 0 0 0-10.8 0Z"/><circle cx="12" cy="6.5" r="4.5"/></svg>',
+        truck: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/><path d="M5 18H3V6h11v12H9m6 0h1V11h4l2 3v4h-2"/></svg>',
+        card: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>',
+        check: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/></svg>',
+        box: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>',
+    };
+}

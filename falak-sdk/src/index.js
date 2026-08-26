@@ -21,6 +21,9 @@ import ApiClient from './api/client.js';
 import ProductApi from './api/product.js';
 import ReviewApi from './api/review.js';
 import QuestionApi from './api/question.js';
+import CartApi from './api/cart.js';
+import WishlistApi from './api/wishlist.js';
+import CheckoutApi from './api/checkout.js';
 import AuthApi from './api/auth.js';
 import LocalizationApi from './api/localization.js';
 import OfferApi from './api/offer.js';
@@ -50,6 +53,18 @@ function domain(api, event) {
         has(target, key) {
             return key in target || key in api;
         },
+        /*
+         * Writes land on the API instance when it owns the key. Without this
+         * `falak.cart.loaded = false` set a property on the proxy's own
+         * target while every read kept coming from the instance — a silent
+         * no-op that looked like it worked.
+         */
+        set(target, key, value) {
+            if (api && key in api) api[key] = value;
+            else target[key] = value;
+
+            return true;
+        },
     });
 }
 
@@ -75,6 +90,9 @@ function createSdk() {
         product: new ProductApi(client, events.product),
         review: new ReviewApi(client, events.review, config),
         question: new QuestionApi(client, events.question, config),
+        cart: new CartApi(client, events.cart, config),
+        wishlist: new WishlistApi(client, events.wishlist, config, storage),
+        checkout: new CheckoutApi(client, events.checkout, config),
         auth: new AuthApi(client, events.auth, config, storage),
         localization: new LocalizationApi(client, events.localization, config, storage),
         offer: new OfferApi(client, events.offer, storage),
@@ -103,6 +121,9 @@ function createSdk() {
         product: domain(api.product, events.product),
         review: domain(api.review, events.review),
         question: domain(api.question, events.question),
+        cart: domain(api.cart, events.cart),
+        wishlist: domain(api.wishlist, events.wishlist),
+        checkout: domain(api.checkout, events.checkout),
         auth: domain(api.auth, events.auth),
         localization: domain(api.localization, events.localization),
         offer: domain(api.offer, events.offer),

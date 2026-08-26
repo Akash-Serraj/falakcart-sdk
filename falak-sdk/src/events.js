@@ -37,6 +37,52 @@ class ReviewEvents extends Namespace {
     }
 }
 
+class CartEvents extends Namespace {
+    constructor(emitter) {
+        super(emitter);
+        this.namespace = 'cart';
+        this.events = {
+            fetched: 'fetched',
+            added: 'added',
+            updated: 'updated',
+            failed: 'failed',
+            couponApplied: 'coupon.applied',
+            couponRemoved: 'coupon.removed',
+            couponFailed: 'coupon.failed',
+        };
+        this.register();
+    }
+}
+
+class WishlistEvents extends Namespace {
+    constructor(emitter) {
+        super(emitter);
+        this.namespace = 'wishlist';
+        this.events = {
+            fetched: 'fetched',
+            added: 'added',
+            removed: 'removed',
+            updated: 'updated',
+            failed: 'failed',
+        };
+        this.register();
+    }
+}
+
+class CheckoutEvents extends Namespace {
+    constructor(emitter) {
+        super(emitter);
+        this.namespace = 'checkout';
+        this.events = {
+            totalsCalculated: 'totals.calculated',
+            orderPlaced: 'order.placed',
+            paymentVerified: 'payment.verified',
+            failed: 'failed',
+        };
+        this.register();
+    }
+}
+
 class QuestionEvents extends Namespace {
     constructor(emitter) {
         super(emitter);
@@ -118,6 +164,9 @@ export default function registerEvents(emitter) {
         product: new ProductEvents(emitter),
         review: new ReviewEvents(emitter),
         question: new QuestionEvents(emitter),
+        cart: new CartEvents(emitter),
+        wishlist: new WishlistEvents(emitter),
+        checkout: new CheckoutEvents(emitter),
         auth: new AuthEvents(emitter),
         localization: new LocalizationEvents(emitter),
         offer: new OfferEvents(emitter),

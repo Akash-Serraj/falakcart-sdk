@@ -145,6 +145,22 @@ export default class FalakModal extends FalakElement {
 
     /* -------------------------------------------------------- visibility */
 
+    /**
+     * Opening and closing must not rebuild the dialog: visibility is state,
+     * not markup. A rebuild re-creates every child component (a quick-add
+     * dialog re-fetched its product on each toggle) and drops focus. Only
+     * the other observed attributes (title, width, loading) re-render.
+     */
+    attributeChangedCallback(name, previous, next) {
+        if (name === 'visible') {
+            if (!this.ready || previous === next) return;
+            this.onAttributeChange(name, previous, next);
+            return;
+        }
+
+        super.attributeChangedCallback(name, previous, next);
+    }
+
     onAttributeChange(name) {
         if (name !== 'visible') return;
 

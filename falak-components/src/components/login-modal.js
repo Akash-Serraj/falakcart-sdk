@@ -54,6 +54,8 @@ export default class FalakLoginModal extends FalakElement {
         // this element exists.
         this._off = this.sdk.event.on('auth::required', () => this.open());
         this._offOpen = this.sdk.event.on('login::open', () => this.open());
+        // A sign-in completed anywhere (another modal, a script) ends this one.
+        this._offIn = this.sdk.event.on('auth::logged.in', () => this.close());
     }
 
     disconnectedCallback() {

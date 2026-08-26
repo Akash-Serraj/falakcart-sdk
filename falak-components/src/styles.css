@@ -1,0 +1,21 @@
+/*
+    Entry stylesheet — the three component sheets, all inside one cascade
+    layer.
+
+    `@layer falak` is the override contract: a layered rule loses to ANY
+    unlayered rule, whatever its specificity or position. A theme restyles a
+    component by writing a plain selector in its own app.css — `.f-btn {}`,
+    `falak-add-product-button button {}` — and it wins, with no !important and
+    no knowledge of the SDK's selectors' weight. The platform also links this
+    file before the theme's stylesheet, so themes that never heard of layers
+    still win on source order.
+
+    The SDK's own !important rules (.f-hidden) stay decisive: inside a layer,
+    !important ranks above unlayered !important — that is the one thing a
+    theme should not be able to undo by accident.
+*/
+@layer falak;
+
+@import './components.css' layer(falak);
+@import './components.chrome.css' layer(falak);
+@import './components.account.css' layer(falak);
