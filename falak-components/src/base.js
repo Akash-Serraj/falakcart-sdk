@@ -177,8 +177,20 @@ export default class FalakElement extends HTMLElement {
         return this;
     }
 
+    /**
+     * Sets both `data-busy` (the original hook, some stylesheets key off it)
+     * and `aria-busy` (the real ARIA attribute — screen readers announce it,
+     * and several component stylesheets were already written against
+     * `[aria-busy="true"]` expecting this, which setBusy() never actually set).
+     */
     setBusy(busy) {
-        busy ? this.setAttribute('data-busy', 'true') : this.removeAttribute('data-busy');
+        if (busy) {
+            this.setAttribute('data-busy', 'true');
+            this.setAttribute('aria-busy', 'true');
+        } else {
+            this.removeAttribute('data-busy');
+            this.removeAttribute('aria-busy');
+        }
         return this;
     }
 }

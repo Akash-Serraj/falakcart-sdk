@@ -681,3 +681,440 @@ body.f-modal-open { overflow: hidden; }
     .f-announce__track { animation: none; }
     .f-announce--scroll .f-announce__inner { justify-content: center; overflow-x: auto; }
 }
+
+/* ========================================================================
+   Loading — the shared spinner, standalone / overlay / full page
+   ======================================================================== */
+
+.f-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--f-text-soft, currentColor);
+}
+
+.f-loading__spinner {
+    flex: none;
+    inline-size: 1.35rem;
+    block-size: 1.35rem;
+    border: 2px solid var(--f-border);
+    border-block-start-color: var(--color-primary, #1d9e75);
+    border-radius: 50%;
+    animation: f-spin 0.7s linear infinite;
+}
+
+.f-loading--sm .f-loading__spinner { inline-size: 1rem; block-size: 1rem; border-width: 2px; }
+.f-loading--lg .f-loading__spinner { inline-size: 2.25rem; block-size: 2.25rem; border-width: 3px; }
+
+/* A caption only makes sense on the full-page overlay; elsewhere it is
+   screen-reader text so the spinner alone stays the visible affordance. */
+.f-loading:not(.f-loading--page) .f-loading__label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.f-loading--overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    justify-content: center;
+    background: color-mix(in srgb, var(--f-surface, #fff) 80%, transparent);
+}
+
+.f-loading--page {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.85rem;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+}
+
+.f-loading--page .f-loading__spinner {
+    inline-size: 2.25rem;
+    block-size: 2.25rem;
+    border-width: 3px;
+    border-color: rgba(255, 255, 255, 0.3);
+    border-block-start-color: #fff;
+}
+
+.f-loading--page .f-loading__label { font-size: 0.95rem; font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+    .f-loading__spinner { animation-duration: 1.4s; }
+}
+
+/* ========================================================================
+   Notifications — the global toast stack
+   ======================================================================== */
+
+.f-notifications {
+    position: fixed;
+    z-index: 1150;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    inline-size: min(22rem, calc(100vw - 2rem));
+    pointer-events: none;
+}
+
+.f-notifications--top-end { inset-block-start: 1.25rem; inset-inline-end: 1.25rem; }
+.f-notifications--top-start { inset-block-start: 1.25rem; inset-inline-start: 1.25rem; }
+.f-notifications--top-center { inset-block-start: 1.25rem; inset-inline-start: 50%; transform: translateX(-50%); }
+.f-notifications--bottom-end { inset-block-end: 1.25rem; inset-inline-end: 1.25rem; }
+.f-notifications--bottom-start { inset-block-end: 1.25rem; inset-inline-start: 1.25rem; }
+.f-notifications--bottom-center { inset-block-end: 1.25rem; inset-inline-start: 50%; transform: translateX(-50%); }
+
+.f-toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 0.65rem;
+    background: var(--f-surface, #fff);
+    color: var(--f-text, #1f2937);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateY(-0.5rem);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.f-notifications--bottom-end .f-toast,
+.f-notifications--bottom-start .f-toast,
+.f-notifications--bottom-center .f-toast { transform: translateY(0.5rem); }
+
+.f-toast.is-in { opacity: 1; transform: none; }
+.f-toast.is-out { opacity: 0; }
+
+.f-toast__icon { flex: none; margin-block-start: 0.1rem; }
+.f-toast--success .f-toast__icon { color: var(--f-success, #15803d); }
+.f-toast--error .f-toast__icon { color: var(--f-danger, #b91c1c); }
+.f-toast--warning .f-toast__icon { color: #b45309; }
+.f-toast--info .f-toast__icon { color: var(--color-primary, #1d9e75); }
+
+.f-toast__message { flex: 1; margin: 0; font-size: 0.88rem; line-height: 1.4; }
+
+.f-toast__close {
+    flex: none;
+    inline-size: 1.4rem;
+    block-size: 1.4rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    opacity: 0.6;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.f-toast__close:hover { opacity: 1; background: rgba(0, 0, 0, 0.06); }
+
+@media (prefers-reduced-motion: reduce) {
+    .f-toast { transition: none; }
+}
+
+/* ========================================================================
+   Progress bar — a filled bar for a value against a whole
+   ======================================================================== */
+
+.f-progress { display: block; }
+
+.f-progress__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-block-end: 0.4rem;
+    font-size: 0.85rem;
+}
+
+.f-progress__label { color: var(--f-text, currentColor); }
+.f-progress__value { color: var(--f-text-soft, currentColor); font-variant-numeric: tabular-nums; }
+
+.f-progress__track {
+    inline-size: 100%;
+    block-size: 0.5rem;
+    border-radius: 999px;
+    background: var(--f-border, rgba(0, 0, 0, 0.08));
+    overflow: hidden;
+}
+
+.f-progress__fill {
+    block-size: 100%;
+    border-radius: inherit;
+    background: var(--color-primary, #1d9e75);
+    transition: inline-size 0.3s ease;
+}
+
+.f-progress--success .f-progress__fill { background: var(--f-success, #15803d); }
+.f-progress--warning .f-progress__fill { background: #b45309; }
+.f-progress--danger .f-progress__fill { background: var(--f-danger, #b91c1c); }
+
+.f-progress--sm .f-progress__track { block-size: 0.3rem; }
+.f-progress--lg .f-progress__track { block-size: 0.75rem; }
+
+@media (prefers-reduced-motion: reduce) {
+    .f-progress__fill { transition: none; }
+}
+
+/* ========================================================================
+   Tooltip — a small hover/focus hint
+   ======================================================================== */
+
+.f-tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.f-tooltip__trigger { display: inline-flex; }
+
+.f-tooltip__bubble {
+    position: absolute;
+    z-index: 50;
+    inline-size: max-content;
+    max-inline-size: 16rem;
+    padding: 0.4rem 0.65rem;
+    border-radius: 0.4rem;
+    background: var(--f-text, #1f2430);
+    color: var(--f-surface, #fff);
+    font-size: 0.78rem;
+    line-height: 1.4;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(2px);
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+}
+
+.f-tooltip.is-open .f-tooltip__bubble { opacity: 1; visibility: visible; transform: none; }
+
+.f-tooltip[data-tooltip-position="top"] .f-tooltip__bubble {
+    inset-block-end: calc(100% + 0.4rem);
+    inset-inline-start: 50%;
+    translate: -50% 0;
+}
+.f-tooltip[data-tooltip-position="top"].is-open .f-tooltip__bubble { transform: translate(-50%, 0); }
+.f-tooltip[data-tooltip-position="top"]:not(.is-open) .f-tooltip__bubble { transform: translate(-50%, 2px); }
+
+.f-tooltip[data-tooltip-position="bottom"] .f-tooltip__bubble {
+    inset-block-start: calc(100% + 0.4rem);
+    inset-inline-start: 50%;
+}
+.f-tooltip[data-tooltip-position="bottom"].is-open .f-tooltip__bubble { transform: translate(-50%, 0); }
+.f-tooltip[data-tooltip-position="bottom"]:not(.is-open) .f-tooltip__bubble { transform: translate(-50%, -2px); }
+
+.f-tooltip[data-tooltip-position="start"] .f-tooltip__bubble {
+    inset-inline-end: calc(100% + 0.4rem);
+    inset-block-start: 50%;
+    transform: translateY(-50%);
+}
+.f-tooltip[data-tooltip-position="end"] .f-tooltip__bubble {
+    inset-inline-start: calc(100% + 0.4rem);
+    inset-block-start: 50%;
+    transform: translateY(-50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .f-tooltip__bubble { transition: none; }
+}
+
+/* ========================================================================
+   Skeleton — a content-shaped loading placeholder
+   ======================================================================== */
+
+.f-skeleton {
+    display: block;
+    border-radius: var(--f-radius, 0.5rem);
+    background: linear-gradient(90deg,
+        color-mix(in srgb, var(--f-text, #1f2430) 8%, transparent) 25%,
+        color-mix(in srgb, var(--f-text, #1f2430) 14%, transparent) 37%,
+        color-mix(in srgb, var(--f-text, #1f2430) 8%, transparent) 63%);
+    background-size: 400% 100%;
+    animation: f-shimmer 1.4s ease infinite;
+}
+
+.f-skeleton--circle { border-radius: 50%; }
+
+.f-skeleton--text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: none;
+    animation: none;
+}
+
+.f-skeleton__line {
+    display: block;
+    block-size: 0.85rem;
+    border-radius: 999px;
+    background: linear-gradient(90deg,
+        color-mix(in srgb, var(--f-text, #1f2430) 8%, transparent) 25%,
+        color-mix(in srgb, var(--f-text, #1f2430) 14%, transparent) 37%,
+        color-mix(in srgb, var(--f-text, #1f2430) 8%, transparent) 63%);
+    background-size: 400% 100%;
+    animation: f-shimmer 1.4s ease infinite;
+}
+
+@keyframes f-shimmer {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .f-skeleton, .f-skeleton__line { animation: none; }
+}
+
+/* ========================================================================
+   Placeholder — the "nothing here" block
+   ======================================================================== */
+
+.f-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 3rem 1rem;
+    text-align: center;
+}
+
+.f-placeholder__icon { font-size: 2.5rem; line-height: 1; }
+.f-placeholder__text { margin: 0 0 0.4rem; color: var(--f-text-soft); }
+.f-placeholder__action { margin-block-start: 0.25rem; }
+
+/* ========================================================================
+   Maintenance alert — a prominent, store-wide notice
+   ======================================================================== */
+
+.f-maintenance {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1.25rem;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 0.9rem;
+}
+
+.f-maintenance[hidden] { display: none; }
+.f-maintenance__icon { flex: none; margin-block-start: 0.1rem; }
+.f-maintenance__text { flex: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem; }
+.f-maintenance__title { font-weight: 700; }
+
+.f-maintenance__close {
+    flex: none;
+    inline-size: 1.6rem;
+    block-size: 1.6rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.7;
+}
+.f-maintenance__close:hover { opacity: 1; background: rgba(0, 0, 0, 0.08); }
+
+/* ========================================================================
+   File upload — a drag-and-drop picker with previews
+   ======================================================================== */
+
+.f-upload__zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.75rem 1rem;
+    border: 1.5px dashed var(--f-border);
+    border-radius: var(--f-radius);
+    color: var(--f-text-soft);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.f-upload__zone:hover,
+.f-upload__zone:focus-visible { border-color: var(--color-primary, #1d9e75); }
+.f-upload__zone.is-dragover { border-color: var(--color-primary, #1d9e75); background: color-mix(in srgb, var(--color-primary, #1d9e75) 6%, transparent); }
+.f-upload__icon { color: var(--color-primary, #1d9e75); }
+.f-upload__label { font-size: 0.88rem; text-align: center; }
+
+.f-upload__error { margin: 0.5rem 0 0; font-size: 0.82rem; color: var(--f-danger, #b91c1c); }
+
+.f-upload__list { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.f-upload__item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+}
+.f-upload__thumb { flex: none; inline-size: 2.5rem; block-size: 2.5rem; border-radius: calc(var(--f-radius) * 0.6); object-fit: cover; background: rgba(0, 0, 0, 0.04); }
+.f-upload__thumb--file { display: flex; align-items: center; justify-content: center; color: var(--f-text-soft); }
+.f-upload__name { flex: 1; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f-upload__size { flex: none; font-size: 0.78rem; color: var(--f-text-soft); }
+.f-upload__remove {
+    flex: none;
+    inline-size: 1.4rem;
+    block-size: 1.4rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--f-text-soft);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.f-upload__remove:hover { background: rgba(0, 0, 0, 0.06); color: var(--f-danger, #b91c1c); }
+
+/* ========================================================================
+   Tabs — a horizontal switcher between panels
+   ======================================================================== */
+
+.f-tabs__header {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    border-block-end: 1px solid var(--f-border);
+    margin-block-end: 1.25rem;
+}
+
+.f-tabs__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.75rem 1rem;
+    border: 0;
+    border-block-end: 2px solid transparent;
+    background: none;
+    color: var(--f-text-soft);
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+.f-tabs__tab:hover { color: var(--f-text); }
+.f-tabs__tab.is-active { color: var(--color-primary, #1d9e75); border-block-end-color: var(--color-primary, #1d9e75); }
+
+.f-tabs__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 1.3rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: var(--f-border);
+    color: var(--f-text-soft);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.f-tabs__tab.is-active .f-tabs__badge { background: var(--color-primary, #1d9e75); color: var(--color-on-primary, #fff); }

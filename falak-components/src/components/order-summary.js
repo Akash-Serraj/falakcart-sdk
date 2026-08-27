@@ -58,7 +58,15 @@ export default class FalakOrderSummary extends FalakElement {
             } else if (this._failed) {
                 this.innerHTML = `<p class="f-order__empty">${this.escape(this.trans('account.order_not_found'))}</p>`;
             } else if (!this._keepInitial) {
-                this.innerHTML = `<p class="f-order__loading">${this.escape(this.trans('common.loading'))}</p>`;
+                // Held in the shape of what's coming — header, a couple of
+                // item rows, a totals block — so the page doesn't jump once
+                // the real order lands.
+                this.innerHTML = `
+                    <div class="f-order__skeleton" aria-busy="true">
+                        <falak-skeleton width="40%" height="1.4rem"></falak-skeleton>
+                        <falak-skeleton shape="text" lines="2"></falak-skeleton>
+                        <falak-skeleton height="4.5rem"></falak-skeleton>
+                    </div>`;
             }
             return;
         }

@@ -727,6 +727,7 @@
    ======================================================================== */
 .f-order { display: flex; flex-direction: column; gap: 1.5rem; }
 .f-order__guest, .f-order__empty, .f-order__loading { text-align: center; padding: 1.5rem 1rem; opacity: 0.85; }
+.f-order__skeleton { display: flex; flex-direction: column; gap: 1rem; }
 .f-order__guest { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
 .f-order__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .f-order__title { margin: 0; font-size: 1.35rem; }

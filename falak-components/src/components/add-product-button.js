@@ -107,7 +107,11 @@ export default class FalakAddProductButton extends FalakElement {
         if (this.buttonClass) {
             classes.push(...this.buttonClass.split(/\s+/).filter(Boolean));
         } else {
-            classes.push('f-btn', `f-btn--${this.fill}`, `f-btn--${this.isForSale ? this.color : 'light'}`);
+            // {color}-{fill} combined, matching <falak-button>'s convention
+            // (f-btn--primary-outline, not two separate f-btn--outline /
+            // f-btn--primary classes — the CSS only defines the combined form).
+            const color = this.isForSale ? this.color : 'light';
+            classes.push('f-btn', this.fill === 'solid' ? `f-btn--${color}` : `f-btn--${color}-${this.fill}`);
             if (this.size !== 'medium') classes.push(`f-btn--${this.size}`);
             if (this.width !== 'normal') classes.push(`f-btn--${this.width}`);
         }
@@ -235,10 +239,14 @@ export default class FalakAddProductButton extends FalakElement {
             image: this.attr('product-image', ''),
             price: this.attr('product-price', ''),
         };
+        const options = this.quickAddOptions();
 
-        if (FalakQuickAdd?.open) FalakQuickAdd.open(product);
-        else this.sdk.event.dispatch('quick-add::open', product);
+        if (FalakQuickAdd?.open) FalakQuickAdd.open(product, options);
+        else this.sdk.event.dispatch('quick-add::open', { ...product, ...options });
     }
+
+    /** Extra options for the quick-add dialog. <falak-quick-buy> redirects instead of just closing. */
+    quickAddOptions() { return {}; }
 
     async add() {
         if (!this.isForSale || this._pending) return;
@@ -293,13 +301,8 @@ export default class FalakAddProductButton extends FalakElement {
                 () => this.sdk.cart.add(this.productId, { quantity, variationId }),
             );
 
-            // One toast, worded for the shopper — not the API's generic
-            // "cart updated" that withoutNotifier suppressed above.
-            // A <falak-add-product-toast> on the page shows the product card
-            // instead (it listens to cart::added), so no second toast here.
-            if (!document.querySelector('falak-add-product-toast')) this.sdk.notify.success(this.trans('cart.added'));
             this.emit('success', { productId: this.productId, variationId, quantity, source: this.source, response });
-            this.flyToCart();
+            this.onAdded(response, { variationId, quantity });
         } catch (error) {
             this.sdk.notify.error(error?.message || this.trans('common.load_failed'));
             this.emit('failed', { productId: this.productId, quantity, error });
@@ -318,5 +321,17 @@ export default class FalakAddProductButton extends FalakElement {
             this.setBusy(false);
             if (this.isForSale) this._button?.removeAttribute('disabled');
         }
+    }
+
+    /**
+     * What happens once the cart accepted the add. <falak-quick-buy> heads
+     * straight to checkout instead of overriding add() itself, so the
+     * validation and stock-exceeded handling around it stays shared.
+     */
+    onAdded(response, { variationId, quantity }) {
+        // A <falak-add-product-toast> on the page shows the product card
+        // instead (it listens to cart::added), so no second toast here.
+        if (!document.querySelector('falak-add-product-toast')) this.sdk.notify.success(this.trans('cart.added'));
+        this.flyToCart();
     }
 }

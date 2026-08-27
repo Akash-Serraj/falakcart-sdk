@@ -20,6 +20,17 @@ import FalakCartSummary from './components/cart-summary.js';
 import FalakCartCoupons from './components/cart-coupons.js';
 import FalakProductOptions from './components/product-options.js';
 import FalakQuickAdd from './components/quick-add.js';
+import FalakQuickBuy from './components/quick-buy.js';
+import FalakLoading from './components/loading.js';
+import FalakProgressBar from './components/progress-bar.js';
+import FalakTooltip from './components/tooltip.js';
+import FalakSkeleton from './components/skeleton.js';
+import FalakPlaceholder from './components/placeholder.js';
+import FalakMaintenanceAlert from './components/maintenance-alert.js';
+import FalakFileUpload from './components/file-upload.js';
+import FalakTabs from './components/tabs.js';
+import FalakTabsContent from './components/tabs-content.js';
+import FalakNotifications from './components/notifications.js';
 import FalakWishlistButton from './components/wishlist-button.js';
 import FalakWishlistDrawer from './components/wishlist-drawer.js';
 import FalakCheckout from './components/checkout.js';
@@ -77,6 +88,17 @@ const REGISTRY = {
     'falak-cart-coupons': FalakCartCoupons,
     'falak-product-options': FalakProductOptions,
     'falak-quick-add': FalakQuickAdd,
+    'falak-quick-buy': FalakQuickBuy,
+    'falak-loading': FalakLoading,
+    'falak-progress-bar': FalakProgressBar,
+    'falak-tooltip': FalakTooltip,
+    'falak-skeleton': FalakSkeleton,
+    'falak-placeholder': FalakPlaceholder,
+    'falak-maintenance-alert': FalakMaintenanceAlert,
+    'falak-file-upload': FalakFileUpload,
+    'falak-tabs': FalakTabs,
+    'falak-tabs-content': FalakTabsContent,
+    'falak-notifications': FalakNotifications,
     'falak-wishlist-button': FalakWishlistButton,
     'falak-wishlist-drawer': FalakWishlistDrawer,
     'falak-checkout': FalakCheckout,

@@ -14,12 +14,16 @@ import FalakElement from '../base.js';
  * image, price }). One element serves the whole page; each open builds a
  * fresh <falak-modal> because the modal snapshots its content on first
  * render.
+ *
+ * open(product, { redirect }) leaves for `redirect` once the add succeeds
+ * instead of closing — <falak-quick-buy> passes this to reuse the same
+ * dialog for a variant product met outside its own page.
  */
 export default class FalakQuickAdd extends FalakElement {
     static observedAttributes = [];
 
     /** Finds or creates the page's dialog and opens it for a product. */
-    static open(product) {
+    static open(product, options = {}) {
         let host = document.querySelector('falak-quick-add');
 
         if (!host) {
@@ -27,7 +31,7 @@ export default class FalakQuickAdd extends FalakElement {
             document.body.appendChild(host);
         }
 
-        return host.open(product);
+        return host.open(product, options);
     }
 
     render() {
@@ -49,8 +53,11 @@ export default class FalakQuickAdd extends FalakElement {
 
     /**
      * @param {{ productId: number|string, name?: string, image?: string, price?: string|number, currency?: string }} product
+     * @param {{ redirect?: string }} options  redirect: leave for this URL
+     *   instead of just closing once the add succeeds — how <falak-quick-buy>
+     *   reuses this same dialog to go straight to checkout.
      */
-    async open(product) {
+    async open(product, options = {}) {
         const productId = product?.productId ?? product?.id;
         if (!productId) return null;
 
@@ -98,9 +105,18 @@ export default class FalakQuickAdd extends FalakElement {
                 : price;
         });
 
-        // Added: the shopper is done here.
+        // Added: the shopper is done here — or, for quick-buy, not done at
+        // all yet, just past the part only this dialog could collect.
         modal.addEventListener('success', event => {
             if (!event.target.matches('falak-add-product-button')) return;
+
+            if (options.redirect) {
+                const FalakLoading = customElements.get('falak-loading');
+                FalakLoading?.showPage(this.trans('checkout.title'));
+                window.location.href = options.redirect;
+                return;
+            }
+
             window.setTimeout(() => modal.close(), 350);
         });
 

@@ -119,6 +119,8 @@ export default class FalakCheckout extends FalakElement {
         this.syncForm();
 
         this.innerHTML = `
+            ${this.state.loading ? '' : `<falak-progress-bar class="f-checkout__progress" value="${this.state.step}" max="3"
+                                 label="${this.escape(this.trans('checkout.step_progress', { step: this.state.step, total: 3 }))}"></falak-progress-bar>`}
             <div class="f-checkout__layout">
                 <main class="f-checkout__main">
                     ${this.customerHtml()}
@@ -358,7 +360,11 @@ export default class FalakCheckout extends FalakElement {
         const t = this.state.totals;
         const currency = t?.currency;
 
-        const row = (key, amount, cls = '') => `<div class="f-checkout__row ${cls}"><span>${this.escape(this.trans(key))}</span><span>${this.escape(this.money(amount, currency))}</span></div>`;
+        const row = (key, amount, cls = '', hint = null) => `
+            <div class="f-checkout__row ${cls}">
+                <span>${this.escape(this.trans(key))}${hint ? `<falak-tooltip text="${this.escape(hint)}"><button type="button" class="f-checkout__info-btn" aria-label="${this.escape(this.trans('common.more_info'))}">${FalakCheckout.ICONS.info}</button></falak-tooltip>` : ''}</span>
+                <span>${this.escape(this.money(amount, currency))}</span>
+            </div>`;
 
         return `
             <div class="f-checkout__summary">
@@ -377,7 +383,7 @@ export default class FalakCheckout extends FalakElement {
                         ${row('cart.subtotal', t.subtotal)}
                         ${Number(t.discount_amount) > 0 ? row('cart.discount', -Number(t.discount_amount), 'f-checkout__row--discount') : ''}
                         ${this.hasShipping ? row('checkout.shipping', t.shipping_cost) : ''}
-                        ${Number(t.cod_fee) > 0 ? row('checkout.cod_fee', t.cod_fee) : ''}
+                        ${Number(t.cod_fee) > 0 ? row('checkout.cod_fee', t.cod_fee, '', this.trans('checkout.cod_fee_hint')) : ''}
                         ${Number(t.tax_amount) > 0 ? row('checkout.tax', t.tax_amount) : ''}
                         ${row('checkout.total', t.total, 'f-checkout__row--total')}`
                     : this.cartTotalsHtml(lines, row)}
@@ -728,5 +734,6 @@ export default class FalakCheckout extends FalakElement {
         card: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>',
         check: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/></svg>',
         box: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>',
+        info: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>',
     };
 }
