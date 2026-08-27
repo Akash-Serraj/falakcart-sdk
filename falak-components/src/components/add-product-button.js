@@ -295,12 +295,24 @@ export default class FalakAddProductButton extends FalakElement {
 
             // One toast, worded for the shopper — not the API's generic
             // "cart updated" that withoutNotifier suppressed above.
-            this.sdk.notify.success(this.trans('cart.added'));
+            // A <falak-add-product-toast> on the page shows the product card
+            // instead (it listens to cart::added), so no second toast here.
+            if (!document.querySelector('falak-add-product-toast')) this.sdk.notify.success(this.trans('cart.added'));
             this.emit('success', { productId: this.productId, variationId, quantity, source: this.source, response });
             this.flyToCart();
         } catch (error) {
             this.sdk.notify.error(error?.message || this.trans('common.load_failed'));
             this.emit('failed', { productId: this.productId, quantity, error });
+
+            // "Requested quantity exceeds available stock": the page can cap
+            // the stepper and offer "notify me" instead of a dead end.
+            const payload = error?.falak?.payload;
+            const available = payload?.available ?? payload?.available_stock;
+            if (available !== undefined && available !== null) {
+                this.emitBus('product::stock.exceeded', {
+                    productId: this.productId, variationId, available: Number(available), requested: quantity, message: error?.message,
+                });
+            }
         } finally {
             this._pending = false;
             this.setBusy(false);

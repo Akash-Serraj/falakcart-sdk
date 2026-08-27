@@ -255,6 +255,7 @@ export default class FalakProductOptions extends FalakElement {
             price: variation?.price ?? null,
             comparePrice: variation?.comparePrice ?? null,
             inStock: variation ? variation.inStock : null,
+            quantity: variation ? variation.quantity : null,
             complete: this.isComplete,
             selected: { ...this.selected },
         };

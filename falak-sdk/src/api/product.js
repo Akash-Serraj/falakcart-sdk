@@ -9,9 +9,11 @@ export default class ProductApi extends BaseApi {
         super(client);
         this.event = event;
 
+        this.methods = { notify: 'post' };
         this.endpoints = {
             list: 'products',
             show: 'products/{product}',
+            notify: 'products/{product}/notify-availability',
             byCategory: 'categories/{category}/products',
             categories: 'categories',
         };
@@ -51,6 +53,25 @@ export default class ProductApi extends BaseApi {
         this.event.fetched(result);
 
         return result;
+    }
+
+    /**
+     * "Notify me when it's back" for a sold-out product or variant. Either
+     * contact may be omitted; a signed-in customer's details fill the gap.
+     */
+    async notifyWhenAvailable(productId, { email = '', phone = '', variationId = null } = {}) {
+        if (!productId) return this.reject('There is no product "id"!');
+
+        const body = {};
+        if (email) body.email = email;
+        if (phone) body.phone = phone;
+        if (variationId) body.product_variation_id = Number(variationId);
+
+        const response = await this.call(['notify', productId], { body });
+
+        this.event.availabilitySubscribed({ productId, variationId, response });
+
+        return response;
     }
 
     async show(productId) {

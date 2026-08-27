@@ -16,6 +16,7 @@ class ProductEvents extends Namespace {
             fetched: 'fetched',
             fetchFailed: 'fetch.failed',
             detailFetched: 'detail.fetched',
+            availabilitySubscribed: 'availability.subscribed',
             quantityChanged: 'quantity.changed',
             viewed: 'viewed',
         };
@@ -110,6 +111,7 @@ class AuthEvents extends Namespace {
             registered: 'registered',
             loggedOut: 'logged.out',
             userFetched: 'user.fetched',
+            profileUpdated: 'profile.updated',
             tokenInvalid: 'token.invalid',
 
             // Dispatched by requireLoginThen(); the login modal listens for it.

@@ -1044,3 +1044,143 @@ body.f-drawer-open { overflow: hidden; }
 .is-success .f-payment-status__icon { background: var(--color-primary, #1d9e75); color: var(--color-on-primary, #fff); }
 .is-failed .f-payment-status__icon { background: var(--f-danger); color: #fff; }
 .f-payment-status__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; }
+
+/* ========================================================================
+   Product availability ("notify me"), size guide, reviews summary
+   ======================================================================== */
+
+.f-availability { display: block; }
+.f-availability[hidden] { display: none; }
+.f-availability__button { display: inline-flex; align-items: center; gap: 0.45rem; }
+.f-availability__done { display: inline-flex; align-items: center; gap: 0.45rem; margin: 0; color: var(--color-primary, #1d9e75); font-weight: 600; }
+.f-availability__form { display: flex; flex-direction: column; gap: 0.9rem; }
+.f-availability__error { margin: 0; font-size: 0.85rem; color: var(--f-danger); }
+.f-availability__error[hidden] { display: none; }
+
+.f-size-guide { display: inline-block; }
+.f-size-guide[hidden] { display: none; }
+.f-size-guide__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-primary, #1d9e75);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+.f-size-guide__body { display: flex; flex-direction: column; gap: 1rem; }
+.f-size-guide__image { max-inline-size: 100%; block-size: auto; border-radius: var(--f-radius); }
+.f-size-guide__content table { inline-size: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.f-size-guide__content th, .f-size-guide__content td { padding: 0.5rem 0.6rem; border: 1px solid var(--f-border); text-align: start; }
+.f-size-guide__content th { background: rgba(0, 0, 0, 0.04); font-weight: 700; }
+
+.f-reviews-summary { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1.5rem; align-items: center; }
+.f-reviews-summary[hidden] { display: none; }
+@media (max-width: 599px) { .f-reviews-summary { grid-template-columns: minmax(0, 1fr); } }
+.f-reviews-summary__loading { display: flex; justify-content: center; padding: 1rem; }
+.f-reviews-summary__empty { margin: 0; color: var(--f-text-soft); }
+.f-reviews-summary__score { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; min-inline-size: 8rem; }
+.f-reviews-summary__average { font-size: 2.6rem; font-weight: 800; line-height: 1; color: var(--f-text); }
+.f-reviews-summary__total { font-size: 0.85rem; color: var(--f-text-soft); }
+.f-reviews-summary__bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.f-reviews-summary__row { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr) 2.5rem; align-items: center; gap: 0.6rem; font-size: 0.85rem; }
+.f-reviews-summary__row-label { color: var(--f-text-soft); white-space: nowrap; }
+.f-reviews-summary__star { color: #f5a623; }
+.f-reviews-summary__bar { display: block; block-size: 0.55rem; border-radius: 999px; background: rgba(0, 0, 0, 0.07); overflow: hidden; }
+.f-reviews-summary__fill { display: block; block-size: 100%; border-radius: 999px; background: #f5a623; transition: inline-size 0.4s ease; }
+.f-reviews-summary__count { text-align: end; color: var(--f-text-soft); font-variant-numeric: tabular-nums; }
+.f-availability__note { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--f-text-soft); }
+
+/* ========================================================================
+   Add-product toast — the "added to your cart" card
+   ======================================================================== */
+.f-add-toast {
+    position: fixed;
+    z-index: 1100;
+    inline-size: min(22rem, calc(100vw - 2rem));
+    opacity: 0;
+    transform: translateY(0.75rem);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+}
+.f-add-toast[hidden] { display: none; }
+.f-add-toast.is-in { opacity: 1; transform: none; pointer-events: auto; }
+.f-add-toast--bottom-end { inset-block-end: 1.25rem; inset-inline-end: 1.25rem; }
+.f-add-toast--bottom-start { inset-block-end: 1.25rem; inset-inline-start: 1.25rem; }
+.f-add-toast--bottom-center { inset-block-end: 1.25rem; inset-inline-start: 50%; transform: translate(-50%, 0.75rem); }
+.f-add-toast--bottom-center.is-in { transform: translate(-50%, 0); }
+.f-add-toast--top-end { inset-block-start: 1.25rem; inset-inline-end: 1.25rem; transform: translateY(-0.75rem); }
+.f-add-toast--top-start { inset-block-start: 1.25rem; inset-inline-start: 1.25rem; transform: translateY(-0.75rem); }
+.f-add-toast--top-center { inset-block-start: 1.25rem; inset-inline-start: 50%; transform: translate(-50%, -0.75rem); }
+.f-add-toast--top-center.is-in { transform: translate(-50%, 0); }
+.f-add-toast__card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    background: var(--f-surface, #fff);
+    color: var(--f-text, #1f2937);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+}
+.f-add-toast__close {
+    position: absolute;
+    inset-block-start: 0.5rem;
+    inset-inline-end: 0.5rem;
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.f-add-toast__close:hover { background: rgba(0, 0, 0, 0.06); }
+.f-add-toast__head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-inline-end: 2rem;
+    font-weight: 700;
+    color: var(--f-success, #15803d);
+}
+.f-add-toast__icon { flex: none; }
+.f-add-toast__product { display: flex; align-items: center; gap: 0.75rem; }
+.f-add-toast__image {
+    flex: none;
+    inline-size: 3.5rem;
+    block-size: 3.5rem;
+    object-fit: cover;
+    border-radius: 0.5rem;
+    background: rgba(0, 0, 0, 0.05);
+}
+.f-add-toast__info { display: flex; flex-direction: column; gap: 0.15rem; min-inline-size: 0; }
+.f-add-toast__name {
+    font-weight: 600;
+    color: inherit;
+    text-decoration: none;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+.f-add-toast__variant, .f-add-toast__price { font-size: 0.85rem; opacity: 0.75; }
+.f-add-toast__summary {
+    margin: 0;
+    padding-block-start: 0.75rem;
+    border-block-start: 1px solid rgba(0, 0, 0, 0.08);
+    font-size: 0.85rem;
+    opacity: 0.85;
+}
+.f-add-toast__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.f-add-toast__actions .f-btn { justify-content: center; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .f-add-toast { transition: none; } }

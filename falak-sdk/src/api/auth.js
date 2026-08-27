@@ -24,9 +24,11 @@ export default class AuthApi extends BaseApi {
             verifyOtp: '/api/customer/auth/verify-otp',
             logout: '/api/customer/logout',
             user: '/api/customer/user',
+            profile: '/api/customer/profile',
+            updateProfile: '/api/customer/profile',
         };
 
-        this.methods = { sendOtp: 'post', verifyOtp: 'post', logout: 'post', user: 'get' };
+        this.methods = { sendOtp: 'post', verifyOtp: 'post', logout: 'post', user: 'get', profile: 'get', updateProfile: 'put' };
     }
 
     /* --------------------------------------------------------------- state */
@@ -116,6 +118,45 @@ export default class AuthApi extends BaseApi {
             // Already signed out locally; a 401 here is the expected outcome.
             return null;
         }
+    }
+
+    /**
+     * The customer's profile with their order statistics:
+     * { user, statistics: { total_orders, pending_orders, completed_orders, delivered_orders } }.
+     */
+    async profile() {
+        if (!this.isLoggedIn()) return null;
+
+        const response = await this.client.withoutNotifier(() => this.call('profile'));
+        const user = response?.user || null;
+
+        if (user) this.persist(this.token, user);
+
+        return { user, statistics: response?.statistics || {} };
+    }
+
+    /**
+     * Saves name / email / phone / address. Only the keys given are sent, so a
+     * form can update one field without resending the rest. The stored
+     * customer is refreshed and `auth::user.fetched` fires, so every user
+     * menu on the page shows the new name at once.
+     */
+    async updateProfile(data = {}) {
+        if (!this.isLoggedIn()) return this.reject('Sign in to update the profile.');
+
+        const body = {};
+        for (const key of ['name', 'email', 'phone', 'address']) {
+            if (data[key] !== undefined && data[key] !== null) body[key] = data[key];
+        }
+
+        const response = await this.client.withoutNotifier(() => this.call('updateProfile', { body }));
+        const user = response?.user || { ...(this.user || {}), ...body };
+
+        this.persist(this.token, user);
+        this.event.userFetched(user);
+        this.event.profileUpdated({ user, changes: body });
+
+        return user;
     }
 
     /** Re-reads the customer, e.g. after a profile change elsewhere. */

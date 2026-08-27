@@ -71,6 +71,23 @@ export default class FalakQuantityInput extends FalakElement {
     }
 
     setup() {
+        const mine = payload => payload && String(payload.productId) === String(this.attr('product-id'));
+
+        // The chosen variant's stock caps the stepper (unlimited clears it).
+        this._offOptions = this.sdk.event.on('product::options.changed', payload => {
+            if (!mine(payload)) return;
+            const stock = payload.complete ? payload.quantity : null;
+
+            if (Number.isFinite(Number(stock)) && stock !== null) this.setAttribute('max', String(Math.max(0, Number(stock))));
+            else this.removeAttribute('max');
+        });
+
+        // The API refused the amount: cap to what it said is available.
+        this._offStock = this.sdk.event.on('product::stock.exceeded', payload => {
+            if (!mine(payload) || !Number.isFinite(Number(payload.available))) return;
+            this.setAttribute('max', String(Math.max(0, Number(payload.available))));
+        });
+
         this.listen(this, 'click', event => {
             const step = event.target.closest('[data-step]');
             if (!step || this.disabled) return;
@@ -87,6 +104,12 @@ export default class FalakQuantityInput extends FalakElement {
 
             this.commit(parseInt(String(input.value).replace(/[^\d-]/g, ''), 10));
         });
+    }
+
+    disconnectedCallback() {
+        this._offOptions?.();
+        this._offStock?.();
+        super.disconnectedCallback();
     }
 
     commit(next) {

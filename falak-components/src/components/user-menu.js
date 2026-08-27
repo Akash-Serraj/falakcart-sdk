@@ -42,12 +42,16 @@ export default class FalakUserMenu extends FalakElement {
         this._offIn = this.sdk.event.on('auth::logged.in', () => this.queueRender());
         this._offOut = this.sdk.event.on('auth::logged.out', () => this.queueRender());
         this._offInvalid = this.sdk.event.on('auth::token.invalid', () => this.queueRender());
+        // The name/email shown here comes from the stored customer, which a
+        // profile edit (<falak-user-profile>) changes without a re-login.
+        this._offFetched = this.sdk.event.on('auth::user.fetched', () => this.queueRender());
     }
 
     disconnectedCallback() {
         this._offIn?.();
         this._offOut?.();
         this._offInvalid?.();
+        this._offFetched?.();
         super.disconnectedCallback();
     }
 

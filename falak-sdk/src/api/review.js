@@ -49,6 +49,21 @@ export default class ReviewApi extends BaseApi {
         return response;
     }
 
+    /**
+     * The reviews at a glance: { average, total, distribution: {5..1: n} }.
+     * One request, one review deep — the summary fields ride on the list.
+     */
+    async summary(productId) {
+        const response = await this.fetch(productId, { perPage: 1, page: 1 });
+        const distribution = response?.rating_distribution || {};
+
+        return {
+            average: Number(response?.average_rating || 0),
+            total: Number(response?.total || 0),
+            distribution: Object.fromEntries([5, 4, 3, 2, 1].map(star => [star, Number(distribution[star] || 0)])),
+        };
+    }
+
     /** Store-wide feed, used by testimonial sections. */
     all(params = {}) {
         return this.call('all', { params });

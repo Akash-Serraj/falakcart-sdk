@@ -148,6 +148,15 @@ export default class CheckoutApi extends BaseApi {
         return response?.order ?? response;
     }
 
+    /**
+     * Everything the order endpoint knows: { order, payment_status,
+     * status_badge, timeline[], can_review, next_actions, download_access }.
+     * order() above returns just the order for callers that want only that.
+     */
+    async orderDetails(orderNumber) {
+        return this.call(['order', orderNumber]);
+    }
+
     async orders(query = {}) {
         return this.call('orders', { params: query });
     }

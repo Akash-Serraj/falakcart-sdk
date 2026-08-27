@@ -24,6 +24,12 @@ import FalakWishlistButton from './components/wishlist-button.js';
 import FalakWishlistDrawer from './components/wishlist-drawer.js';
 import FalakCheckout from './components/checkout.js';
 import FalakPaymentStatus from './components/payment-status.js';
+import FalakProductAvailability from './components/product-availability.js';
+import FalakProductSizeGuide from './components/product-size-guide.js';
+import FalakReviewsSummary from './components/reviews-summary.js';
+import FalakAddProductToast from './components/add-product-toast.js';
+import FalakUserProfile from './components/user-profile.js';
+import FalakOrderSummary from './components/order-summary.js';
 import { FalakAccordion, FalakAccordionHead, FalakAccordionBody } from './components/accordion.js';
 import FalakRatingStars from './components/rating-stars.js';
 import FalakProductCard from './components/product-card.js';
@@ -75,6 +81,12 @@ const REGISTRY = {
     'falak-wishlist-drawer': FalakWishlistDrawer,
     'falak-checkout': FalakCheckout,
     'falak-payment-status': FalakPaymentStatus,
+    'falak-product-availability': FalakProductAvailability,
+    'falak-product-size-guide': FalakProductSizeGuide,
+    'falak-reviews-summary': FalakReviewsSummary,
+    'falak-add-product-toast': FalakAddProductToast,
+    'falak-user-profile': FalakUserProfile,
+    'falak-order-summary': FalakOrderSummary,
 
     // footer & trust
     'falak-social': FalakSocial,
