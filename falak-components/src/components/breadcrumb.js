@@ -28,7 +28,7 @@ export default class FalakBreadcrumb extends FalakElement {
         const page = this.sdk.config.get('page', {}) || {};
         if (!page.slug || page.slug === 'index') return [];
 
-        const home = { title: this.trans('common.home'), url: this.sdk.url.get('') };
+        const home = { title: this.trans('common.home'), url: this.sdk.url.get(''), isProduct: false };
 
         /*
          * The current URL comes from the browser, not from config: `page.url`
@@ -36,20 +36,38 @@ export default class FalakBreadcrumb extends FalakElement {
          * made every "is this a new page?" test pass — so the trail grew by one
          * duplicate entry on every single load.
          */
-        const current = { title: page.title || '', url: window.location.pathname };
+        // config.page only carries {id, slug, title} — not the richer `type`
+        // the controller computes server-side — so "is this a product page"
+        // is a slug check, same as the rest of this method already did.
+        const isProductPage = page.slug === 'product' || page.slug === 'product.single';
+        const current = { title: page.title || '', url: window.location.pathname, isProduct: isProductPage };
         const session = this.readTrail();
 
-        // A product reached from a listing continues that trail.
-        if (page.slug === 'product' || page.slug === 'product.single') {
+        // A product reached from a listing continues that trail — but a
+        // product reached from ANOTHER product (a related-items row, a
+        // homepage carousel, any lateral jump) is not one level deeper, so it
+        // must not stack: it replaces the previous product entry instead.
+        // Without this check, browsing three unrelated products in a row
+        // produced "Home / Product A / Product B / Product C" as if each were
+        // a category the next was nested inside.
+        if (isProductPage) {
             const previous = session[session.length - 1];
 
-            if (previous && !isSame(previous, current)) {
+            if (previous && isSame(previous, current)) {
+                return this.mark(session);
+            }
+
+            if (previous && previous.isProduct) {
+                const replaced = this.capped([...session.slice(0, -1), current]);
+                this.writeTrail(replaced);
+                return this.mark(replaced);
+            }
+
+            if (previous) {
                 const extended = this.capped([...session, current]);
                 this.writeTrail(extended);
                 return this.mark(extended);
             }
-
-            if (session.length) return this.mark(session);
         }
 
         const generated = this.capped([home, ...this.fromPage(page, current)]);
@@ -76,7 +94,7 @@ export default class FalakBreadcrumb extends FalakElement {
         // A parent whose title matches the page is not a level — it is the same
         // thing named twice, which is how "Home / Guess / Guess" happened.
         if (page.parent && page.parent.title && page.parent.title !== page.title) {
-            trail.push({ title: page.parent.title, url: page.parent.url || '' });
+            trail.push({ title: page.parent.title, url: page.parent.url || '', isProduct: false });
         }
 
         if (current.title) trail.push(current);
