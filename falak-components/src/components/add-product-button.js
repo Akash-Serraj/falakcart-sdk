@@ -26,7 +26,10 @@ import FalakElement from '../base.js';
  * | variation-id       | fixed variation to add (no options element on the page)  |
  * | has-options        | the product has variants and there is no options element |
  * |                    | in scope: the click opens <falak-quick-add> instead        |
- * | product-name /     | what the quick-add dialog shows for the product           |
+ * | mini-checkout      | skip the cart entirely: opens <falak-mini-checkout> for   |
+ * |                    | just this product/variant/quantity instead of adding —    |
+ * |                    | "buy now" the way <salla-mini-checkout-modal> works        |
+ * | product-name /     | what the quick-add / mini-checkout dialog shows            |
  * | -image / -price    |                                                          |
  * | product-status     | sale (default) | out | out-and-notify                   |
  * | product-type       | product (default) | booking | donating                  |
@@ -54,6 +57,7 @@ export default class FalakAddProductButton extends FalakElement {
     get optionsSelector() { return this.attr('options-selector', 'falak-product-options'); }
     get variationId() { return this.attr('variation-id', null); }
     get hasOptions() { return this.boolAttr('has-options'); }
+    get miniCheckout() { return this.boolAttr('mini-checkout'); }
     get width() { return this.attr('width', 'normal'); }
     get size() { return this.attr('size', 'medium'); }
     get color() { return this.attr('color', 'primary'); }
@@ -248,6 +252,30 @@ export default class FalakAddProductButton extends FalakElement {
     /** Extra options for the quick-add dialog. <falak-quick-buy> redirects instead of just closing. */
     quickAddOptions() { return {}; }
 
+    /**
+     * `mini-checkout` skips the cart API entirely — no add() call happens,
+     * so nothing needs undoing if the shopper closes the dialog without
+     * paying. Only reached once a variant (if any) is already resolved;
+     * a variant product with `has-options` met outside its own page still
+     * opens the ordinary quick-add dialog first (needsQuickAdd(), above)
+     * rather than mini-checkout, since the variant has to be picked before
+     * there's a single product to check out.
+     */
+    openMiniCheckout({ variationId, quantity }) {
+        const FalakMiniCheckout = customElements.get('falak-mini-checkout');
+        const item = {
+            productId: this.productId,
+            variationId,
+            quantity,
+            name: this.attr('product-name', ''),
+            image: this.attr('product-image', ''),
+            price: this.attr('product-price', ''),
+        };
+
+        if (FalakMiniCheckout?.open) FalakMiniCheckout.open(item);
+        else this.sdk.event.dispatch('buy-now::open', item);
+    }
+
     async add() {
         if (!this.isForSale || this._pending) return;
 
@@ -291,6 +319,11 @@ export default class FalakAddProductButton extends FalakElement {
         }
 
         const quantity = this.selectedQuantity();
+
+        if (this.miniCheckout) {
+            this.openMiniCheckout({ variationId, quantity });
+            return;
+        }
 
         this._pending = true;
         this.setBusy(true);

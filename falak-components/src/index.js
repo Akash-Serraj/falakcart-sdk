@@ -30,6 +30,13 @@ import FalakMaintenanceAlert from './components/maintenance-alert.js';
 import FalakFileUpload from './components/file-upload.js';
 import FalakTabs from './components/tabs.js';
 import FalakTabsContent from './components/tabs-content.js';
+import FalakOrders from './components/orders.js';
+import FalakNotificationItem from './components/notification-item.js';
+import FalakCustomFields from './components/custom-fields.js';
+import FalakPriceRange from './components/price-range.js';
+import FalakDatetimePicker from './components/datetime-picker.js';
+import FalakSearch from './components/search.js';
+import FalakMiniCheckout from './components/mini-checkout.js';
 import FalakNotifications from './components/notifications.js';
 import FalakWishlistButton from './components/wishlist-button.js';
 import FalakWishlistDrawer from './components/wishlist-drawer.js';
@@ -98,6 +105,13 @@ const REGISTRY = {
     'falak-file-upload': FalakFileUpload,
     'falak-tabs': FalakTabs,
     'falak-tabs-content': FalakTabsContent,
+    'falak-orders': FalakOrders,
+    'falak-notification-item': FalakNotificationItem,
+    'falak-custom-fields': FalakCustomFields,
+    'falak-price-range': FalakPriceRange,
+    'falak-datetime-picker': FalakDatetimePicker,
+    'falak-search': FalakSearch,
+    'falak-mini-checkout': FalakMiniCheckout,
     'falak-notifications': FalakNotifications,
     'falak-wishlist-button': FalakWishlistButton,
     'falak-wishlist-drawer': FalakWishlistDrawer,

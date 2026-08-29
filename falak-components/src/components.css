@@ -819,6 +819,23 @@ body.f-drawer-open { overflow: hidden; }
 .f-wishlist-drawer__trigger:hover { color: var(--f-danger); }
 .f-wishlist-drawer__trigger:focus-visible { outline: 2px solid var(--color-primary, #1d9e75); outline-offset: 2px; }
 
+.f-search { display: inline-flex; }
+
+.f-search__trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2.4rem;
+    block-size: 2.4rem;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.05);
+    color: inherit;
+    cursor: pointer;
+}
+.f-search__trigger:hover { color: var(--color-primary, #1d9e75); }
+.f-search__trigger:focus-visible { outline: 2px solid var(--color-primary, #1d9e75); outline-offset: 2px; }
+
 .f-wishlist-drawer__count {
     position: absolute;
     inset-block-start: -0.25rem;

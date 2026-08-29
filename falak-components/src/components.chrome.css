@@ -1118,3 +1118,259 @@ body.f-modal-open { overflow: hidden; }
     font-weight: 700;
 }
 .f-tabs__tab.is-active .f-tabs__badge { background: var(--color-primary, #1d9e75); color: var(--color-on-primary, #fff); }
+
+/* ========================================================================
+   Price range — a min/max filter, two handles over one track
+   ======================================================================== */
+
+.f-price-range { display: block; }
+
+.f-price-range__numbers {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-block-end: 1rem;
+}
+
+.f-price-range__number { inline-size: 100%; min-inline-size: 0; text-align: center; font-variant-numeric: tabular-nums; }
+.f-price-range__sep { flex: none; color: var(--f-text-soft); }
+
+.f-price-range__track {
+    position: relative;
+    block-size: 4px;
+    margin-block: 1.35rem;
+    border-radius: 999px;
+    background: var(--f-border);
+}
+
+.f-price-range__fill {
+    position: absolute;
+    inset-block: 0;
+    border-radius: inherit;
+    background: var(--color-primary, #1d9e75);
+}
+
+.f-price-range__slider {
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: 50%;
+    transform: translateY(-50%);
+    inline-size: 100%;
+    block-size: 4px;
+    margin: 0;
+    background: transparent;
+    pointer-events: none;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.f-price-range__slider::-webkit-slider-runnable-track { background: transparent; }
+.f-price-range__slider::-moz-range-track { background: transparent; }
+
+.f-price-range__slider::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    pointer-events: auto;
+    inline-size: 1.05rem;
+    block-size: 1.05rem;
+    border-radius: 50%;
+    background: var(--color-primary, #1d9e75);
+    border: 2px solid var(--f-surface, #fff);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+}
+
+.f-price-range__slider::-moz-range-thumb {
+    pointer-events: auto;
+    inline-size: 1.05rem;
+    block-size: 1.05rem;
+    border-radius: 50%;
+    background: var(--color-primary, #1d9e75);
+    border: 2px solid var(--f-surface, #fff);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+}
+
+/* ========================================================================
+   Datetime picker — a date, and (given slots) a time to go with it
+   ======================================================================== */
+
+.f-datetime { display: flex; flex-direction: column; gap: 0.85rem; }
+.f-datetime__date { inline-size: 100%; }
+
+.f-datetime__slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.f-datetime__slot {
+    padding: 0.5rem 0.9rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    background: var(--f-surface, #fff);
+    color: var(--f-text);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.f-datetime__slot:hover { border-color: var(--color-primary, #1d9e75); }
+.f-datetime__slot.is-selected { border-color: var(--color-primary, #1d9e75); background: var(--color-primary, #1d9e75); color: var(--color-on-primary, #fff); }
+
+/* ========================================================================
+   Search — a header trigger opening a live product-result dropdown, hosted
+   in the shared <falak-modal> (position="top") rather than its own overlay
+   ======================================================================== */
+
+#falak-search .f-modal__body { max-inline-size: 640px; }
+
+.f-search__panel {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+}
+
+.f-search__form {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.f-search__form .f-search__icon {
+    position: absolute;
+    inset-inline-start: 0.9rem;
+    display: inline-flex;
+    color: var(--f-muted, #8a8f98);
+    pointer-events: none;
+}
+
+.f-search__input {
+    inline-size: 100%;
+    padding-block: 0.75rem;
+    padding-inline: 2.6rem 0.9rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    background: var(--f-surface, #fff);
+    color: var(--f-text);
+    font: inherit;
+    font-size: 1rem;
+}
+.f-search__input:focus-visible { outline: 2px solid var(--color-primary, #1d9e75); outline-offset: 1px; }
+
+.f-search__results {
+    margin-block-start: 0.75rem;
+    max-block-size: min(60vh, 28rem);
+    overflow-y: auto;
+}
+
+.f-search[data-busy="true"] .f-search__results { opacity: 0.6; }
+
+.f-search__list { display: flex; flex-direction: column; gap: 0.25rem; }
+
+.f-search__link {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.6rem;
+    border-radius: var(--f-radius);
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 0.15s ease;
+}
+.f-search__link:hover,
+.f-search__link:focus-visible { background: rgba(0, 0, 0, 0.04); }
+
+.f-search__thumb {
+    flex-shrink: 0;
+    display: block;
+    inline-size: 3rem;
+    block-size: 3rem;
+    border-radius: var(--f-radius);
+    overflow: hidden;
+    background: var(--f-surface-alt, #f2f3f5);
+}
+.f-search__thumb img { inline-size: 100%; block-size: 100%; object-fit: cover; }
+.f-search__thumb-placeholder { display: block; inline-size: 100%; block-size: 100%; }
+
+.f-search__info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-inline-size: 0;
+}
+
+.f-search__name {
+    font-size: 0.92rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.f-search__price { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.88rem; }
+.f-search__price-now { font-weight: 600; color: var(--color-primary, #1d9e75); }
+.f-search__price-was { color: var(--f-muted, #8a8f98); font-size: 0.8rem; }
+
+.f-search__view-all {
+    display: block;
+    margin-block-start: 0.5rem;
+    padding-block: 0.7rem;
+    text-align: center;
+    border-block-start: 1px solid var(--f-border);
+    color: var(--color-primary, #1d9e75);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+.f-search__view-all:hover { text-decoration: underline; }
+
+.f-search__empty {
+    padding-block: 1.5rem;
+    text-align: center;
+    color: var(--f-muted, #8a8f98);
+    font-size: 0.9rem;
+}
+
+@media (max-width: 639px) {
+    #falak-search .f-modal__wrapper--top { padding-block-start: 0; }
+    #falak-search .f-modal__body { max-inline-size: 100%; border-radius: 0; min-block-size: 100dvh; }
+}
+
+/* ========================================================================
+   Mini checkout — "buy now" for one product, hosted in the shared
+   <falak-modal>. Its steps, methods, form and totals all reuse the
+   .f-checkout__* classes above; only the product summary and footer are new.
+   ======================================================================== */
+
+.f-mini-checkout__item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-block-end: 1rem;
+    margin-block-end: 1rem;
+    border-block-end: 1px solid var(--f-border);
+}
+
+.f-mini-checkout__image {
+    flex: none;
+    inline-size: 3.25rem;
+    block-size: 3.25rem;
+    border-radius: var(--f-radius);
+    object-fit: cover;
+    background: var(--f-surface-alt, #f2f3f5);
+}
+.f-mini-checkout__image--empty { display: block; }
+
+.f-mini-checkout__item-text { display: flex; flex-direction: column; gap: 0.15rem; min-inline-size: 0; }
+.f-mini-checkout__item-name { font-weight: 700; color: var(--f-text); }
+.f-mini-checkout__item-meta { font-size: 0.85rem; color: var(--f-text-soft); }
+
+.f-mini-checkout__footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-block-start: 1rem;
+    margin-block-start: 0.5rem;
+}
+.f-datetime__slot.is-selected { border-color: var(--color-primary, #1d9e75); background: var(--color-primary, #1d9e75); color: var(--color-on-primary, #fff); }

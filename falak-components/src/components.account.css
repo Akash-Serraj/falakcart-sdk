@@ -717,6 +717,7 @@
 .f-profile__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem; }
 .f-profile__field--address { grid-column: 1 / -1; }
 .f-profile__input { inline-size: 100%; }
+.f-profile__custom-fields { display: flex; flex-direction: column; gap: 0.4rem; padding-block-start: 0.25rem; border-block-start: 1px solid var(--f-border); }
 .f-field__error { font-size: 0.8rem; color: var(--f-danger, #b91c1c); }
 .f-profile__error { margin: 0; font-size: 0.9rem; color: var(--f-danger, #b91c1c); }
 .f-profile__actions { display: flex; justify-content: flex-end; }
@@ -795,3 +796,113 @@
 .f-order__pay-status--paid, .f-order__pay-status--completed { background: #dcfce7; color: #166534; }
 .f-order__pay-status--pending, .f-order__pay-status--unpaid { background: #fef3c7; color: #92400e; }
 .f-order__pay-status--failed { background: #fee2e2; color: #991b1b; }
+
+/* ========================================================================
+   Orders list — status filter, search, paged
+   ======================================================================== */
+
+.f-orders__guest { text-align: center; padding: 1.5rem 1rem; opacity: 0.85; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+.f-orders__skeleton { padding: 0.5rem 0; }
+
+.f-orders__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-block-end: 1.25rem;
+}
+.f-orders__search { flex: 1; min-inline-size: 12rem; }
+.f-orders__filter { flex: none; min-inline-size: 10rem; }
+
+.f-orders__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+
+.f-orders__row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+}
+
+.f-orders__main { flex: 1; display: flex; flex-direction: column; gap: 0.15rem; min-inline-size: 0; text-decoration: none; color: inherit; }
+.f-orders__number { font-weight: 700; }
+.f-orders__date { font-size: 0.82rem; color: var(--f-text-soft); }
+
+.f-orders__status {
+    flex: none;
+    padding: 0.25rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.06);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+.f-orders__status--pending, .f-orders__status--awaiting_payment { background: #fef3c7; color: #92400e; }
+.f-orders__status--processing { background: #dbeafe; color: #1e40af; }
+.f-orders__status--shipped, .f-orders__status--out_for_delivery { background: #e0e7ff; color: #3730a3; }
+.f-orders__status--delivered, .f-orders__status--completed { background: #dcfce7; color: #166534; }
+.f-orders__status--cancelled, .f-orders__status--refunded, .f-orders__status--returned { background: #fee2e2; color: #991b1b; }
+
+.f-orders__total { flex: none; font-weight: 700; font-variant-numeric: tabular-nums; }
+.f-orders__more { display: flex; justify-content: center; margin-block-start: 1.25rem; }
+
+/* ========================================================================
+   Notification item — one row of a customer's notification history
+   ======================================================================== */
+
+.f-notification-item { display: block; }
+
+.f-notification-item__link,
+.f-notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    text-decoration: none;
+    color: inherit;
+}
+
+.f-notification-item__icon {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2.25rem;
+    block-size: 2.25rem;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--color-primary, #1d9e75) 12%, transparent);
+    color: var(--color-primary, #1d9e75);
+}
+
+.f-notification-item__text { flex: 1; display: flex; flex-direction: column; gap: 0.15rem; min-inline-size: 0; }
+.f-notification-item__title { font-size: 0.92rem; }
+.f-notification-item__body { font-size: 0.85rem; color: var(--f-text-soft); }
+.f-notification-item__time { font-size: 0.78rem; color: var(--f-text-soft); }
+
+.f-notification-item__dot {
+    flex: none;
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+    margin-block-start: 0.4rem;
+    border-radius: 50%;
+    background: var(--color-primary, #1d9e75);
+}
+
+.f-notification-item.is-unread { background: color-mix(in srgb, var(--color-primary, #1d9e75) 5%, transparent); }
+
+/* ========================================================================
+   Custom fields — merchant-defined form fields
+   ======================================================================== */
+
+.f-custom-fields { display: flex; flex-direction: column; gap: 1rem; }
+.f-custom-fields__field falak-file-upload { margin-block-start: 0.35rem; }
+
+.f-custom-fields__options { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; }
+
+.f-custom-fields__option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+}

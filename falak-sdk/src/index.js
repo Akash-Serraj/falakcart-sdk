@@ -24,6 +24,7 @@ import QuestionApi from './api/question.js';
 import CartApi from './api/cart.js';
 import WishlistApi from './api/wishlist.js';
 import CheckoutApi from './api/checkout.js';
+import BuyNowApi from './api/buyNow.js';
 import AuthApi from './api/auth.js';
 import LocalizationApi from './api/localization.js';
 import OfferApi from './api/offer.js';
@@ -93,6 +94,7 @@ function createSdk() {
         cart: new CartApi(client, events.cart, config),
         wishlist: new WishlistApi(client, events.wishlist, config, storage),
         checkout: new CheckoutApi(client, events.checkout, config),
+        buyNow: new BuyNowApi(client, events.buyNow),
         auth: new AuthApi(client, events.auth, config, storage),
         localization: new LocalizationApi(client, events.localization, config, storage),
         offer: new OfferApi(client, events.offer, storage),
@@ -124,6 +126,7 @@ function createSdk() {
         cart: domain(api.cart, events.cart),
         wishlist: domain(api.wishlist, events.wishlist),
         checkout: domain(api.checkout, events.checkout),
+        buyNow: domain(api.buyNow, events.buyNow),
         auth: domain(api.auth, events.auth),
         localization: domain(api.localization, events.localization),
         offer: domain(api.offer, events.offer),

@@ -84,6 +84,19 @@ class CheckoutEvents extends Namespace {
     }
 }
 
+class BuyNowEvents extends Namespace {
+    constructor(emitter) {
+        super(emitter);
+        this.namespace = 'buy-now';
+        this.events = {
+            totalsCalculated: 'totals.calculated',
+            orderPlaced: 'order.placed',
+            failed: 'failed',
+        };
+        this.register();
+    }
+}
+
 class QuestionEvents extends Namespace {
     constructor(emitter) {
         super(emitter);
@@ -169,6 +182,7 @@ export default function registerEvents(emitter) {
         cart: new CartEvents(emitter),
         wishlist: new WishlistEvents(emitter),
         checkout: new CheckoutEvents(emitter),
+        buyNow: new BuyNowEvents(emitter),
         auth: new AuthEvents(emitter),
         localization: new LocalizationEvents(emitter),
         offer: new OfferEvents(emitter),

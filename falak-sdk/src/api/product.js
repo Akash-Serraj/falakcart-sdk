@@ -5,6 +5,8 @@ import BaseApi from './base.js';
  * so components using it work for guests with no auth flow in the way.
  */
 export default class ProductApi extends BaseApi {
+    static CACHE_TTL_MS = 2 * 60 * 1000;
+
     constructor(client, event) {
         super(client);
         this.event = event;
@@ -29,11 +31,7 @@ export default class ProductApi extends BaseApi {
     async fetch({ limit = null, page = 1, category = null, search = null } = {}) {
         const endpoint = category ? ['byCategory', category] : 'list';
 
-        let products = await this.call(endpoint);
-
-        // The list endpoint returns a bare array; the by-category endpoint
-        // wraps its rows: { id, categoryName, products: [...] }.
-        products = Array.isArray(products) ? products : (products?.products ?? products?.data ?? []);
+        let products = await this.cachedList(category ? `category:${category}` : 'list', endpoint);
 
         if (search) {
             const needle = String(search).toLowerCase();
@@ -53,6 +51,31 @@ export default class ProductApi extends BaseApi {
         this.event.fetched(result);
 
         return result;
+    }
+
+    /**
+     * The raw list/by-category call, memoised for a couple of minutes.
+     * Without this, a live-search box (a keystroke every few hundred ms)
+     * would re-fetch the whole catalog from the network on every pause —
+     * the endpoint has no query-string filtering to fetch less instead.
+     * Product data is not stock-ticker fresh in a search dropdown, so a
+     * short staleness window is the right trade for cutting that down to
+     * one request per search session.
+     */
+    async cachedList(key, endpoint) {
+        this._cache ??= new Map();
+        const cached = this._cache.get(key);
+
+        if (cached && Date.now() - cached.at < ProductApi.CACHE_TTL_MS) return cached.list;
+
+        const raw = await this.call(endpoint);
+        // The list endpoint returns a bare array; the by-category endpoint
+        // wraps its rows: { id, categoryName, products: [...] }.
+        const list = Array.isArray(raw) ? raw : (raw?.products ?? raw?.data ?? []);
+
+        this._cache.set(key, { list, at: Date.now() });
+
+        return list;
     }
 
     /**

@@ -134,6 +134,10 @@ class UrlHelpers {
         return this.get(`product/${id}` + (slug ? `/${slug}` : ''));
     }
 
+    search(query = '') {
+        return this.get('search') + (query ? `?q=${encodeURIComponent(query)}` : '');
+    }
+
     /** True on the named storefront page, using the slug the platform rendered. */
     isPage(slug) {
         return this.config.get('page.slug') === slug;

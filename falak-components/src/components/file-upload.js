@@ -96,7 +96,15 @@ export default class FalakFileUpload extends FalakElement {
         });
 
         this.listen(this, 'change', event => {
-            if (event.target.matches('[data-upload-input]')) this.addFiles(event.target.files);
+            if (!event.target.matches('[data-upload-input]')) return;
+
+            // The hidden native input's own 'change' is an implementation
+            // detail — never let it bubble past this element, or a component
+            // nesting this one (a <falak-custom-fields> field) sees a raw
+            // native event with no useful `.detail` mixed in with the clean
+            // one this component means to emit.
+            event.stopImmediatePropagation();
+            this.addFiles(event.target.files);
         });
 
         this.listen(this, 'dragover', event => { event.preventDefault(); zone()?.classList.add('is-dragover'); });

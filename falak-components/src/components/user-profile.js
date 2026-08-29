@@ -10,6 +10,14 @@ import FalakElement from '../base.js';
  * through falak.auth.updateProfile(), so the header's user menu picks up
  * a new name at once.
  *
+ * Below the standard fields, any merchant-defined profile questions render
+ * automatically via <falak-custom-fields> (the storefront profile endpoint
+ * returns them as `custom_fields_schema` — see ProfileCustomField on the
+ * admin side, mirroring Salla's <salla-custom-fields>) and are saved in the
+ * same request. A `photo`-type question renders but is not yet sent on
+ * save: this platform has no generic upload endpoint to resolve a picked
+ * file to a URL first, unlike Salla's instant-upload version.
+ *
  * | attribute  | role                                                          |
  * | fields     | comma list of name,email,phone,address (default: all four)    |
  * | hide-stats | leave out the order counts                                    |
@@ -68,17 +76,51 @@ export default class FalakUserProfile extends FalakElement {
 
         const types = { name: ['text', 'autocomplete="name"'], email: ['email', 'dir="ltr" autocomplete="email"'], phone: ['tel', 'dir="ltr" autocomplete="tel"'], address: ['text', ''] };
 
+        // The merchant's own extra questions — mirrors <salla-custom-fields>.
+        // Kept out of `values` until the customer types (see save()'s error
+        // path), so a re-render from an unrelated field's error doesn't wipe
+        // an in-progress answer here.
+        const schema = this.customFieldsSchema;
+        const customFieldsHtml = schema.length ? `
+            <div class="f-profile__custom-fields">
+                <falak-custom-fields fields='${this.escape(JSON.stringify(schema))}'
+                                      values='${this.escape(JSON.stringify(this._customFieldValues || {}))}'></falak-custom-fields>
+                ${errors.custom_fields ? `<span class="f-field__error">${this.escape(errors.custom_fields)}</span>` : ''}
+            </div>` : '';
+
         this.innerHTML = `
             ${statsHtml}
             <form class="f-profile__form" data-profile-form novalidate>
                 <div class="f-profile__grid">
                     ${this.fields.map(name => field(name, types[name][0], types[name][1])).join('')}
                 </div>
+                ${customFieldsHtml}
                 ${errors._ ? `<p class="f-profile__error" role="alert">${this.escape(errors._)}</p>` : ''}
                 <div class="f-profile__actions">
                     <button type="submit" class="f-btn f-btn--primary f-profile__save" data-profile-save>${this.escape(this.trans(this._saving ? 'account.saving' : 'account.save'))}</button>
                 </div>
             </form>`;
+    }
+
+    get customFieldsSchema() { return this._customFieldsSchema || []; }
+
+    /**
+     * The profile save is a plain JSON PUT — a `photo`-type field's value is
+     * an array of raw File objects (from <falak-file-upload>), which cannot
+     * survive JSON.stringify (it silently becomes `{}`). Rather than send
+     * that, drop it here: this platform has no generic upload endpoint yet
+     * to resolve a picked file to a URL before saving, unlike Salla's own
+     * instant-upload version of this field. Text-based answers are unaffected.
+     */
+    serializableCustomFieldValues(values) {
+        const clean = {};
+
+        for (const [key, value] of Object.entries(values || {})) {
+            if (Array.isArray(value) && value[0] instanceof File) continue;
+            clean[key] = value;
+        }
+
+        return clean;
     }
 
     afterRender() {
@@ -121,6 +163,8 @@ export default class FalakUserProfile extends FalakElement {
 
             this._user = profile.user || this._user;
             this._stats = profile.statistics || null;
+            this._customFieldsSchema = profile.customFieldsSchema || [];
+            this._customFieldValues = this._user?.custom_fields || {};
             this._errors = null;
             this.render();
         } catch (error) {
@@ -137,6 +181,9 @@ export default class FalakUserProfile extends FalakElement {
             if (input) data[name] = input.value.trim();
         }
 
+        const customFieldsEl = form.querySelector('falak-custom-fields');
+        if (customFieldsEl) data.customFields = this.serializableCustomFieldValues(customFieldsEl.values);
+
         this._saving = true;
         this._errors = null;
         this.setBusy(true);
@@ -145,6 +192,7 @@ export default class FalakUserProfile extends FalakElement {
         try {
             const user = await this.sdk.auth.updateProfile(data);
             this._user = user;
+            this._customFieldValues = user?.custom_fields || data.customFields || {};
             this.sdk.notify.success(this.trans('account.profile_saved'));
             this.emit('updated', { user });
         } catch (error) {
@@ -155,6 +203,7 @@ export default class FalakUserProfile extends FalakElement {
             this._errors = errors;
             // Keep what the shopper typed so they can fix one field, not retype all.
             this._user = { ...this.user, ...data };
+            if (data.customFields) this._customFieldValues = data.customFields;
         } finally {
             this._saving = false;
             this.setBusy(false);

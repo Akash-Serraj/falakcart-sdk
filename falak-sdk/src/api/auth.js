@@ -132,14 +132,19 @@ export default class AuthApi extends BaseApi {
 
         if (user) this.persist(this.token, user);
 
-        return { user, statistics: response?.statistics || {} };
+        return {
+            user,
+            statistics: response?.statistics || {},
+            // The merchant's extra profile questions — see <falak-custom-fields>.
+            customFieldsSchema: response?.custom_fields_schema || [],
+        };
     }
 
     /**
-     * Saves name / email / phone / address. Only the keys given are sent, so a
-     * form can update one field without resending the rest. The stored
-     * customer is refreshed and `auth::user.fetched` fires, so every user
-     * menu on the page shows the new name at once.
+     * Saves name / email / phone / address / custom_fields. Only the keys
+     * given are sent, so a form can update one field without resending the
+     * rest. The stored customer is refreshed and `auth::user.fetched` fires,
+     * so every user menu on the page shows the new name at once.
      */
     async updateProfile(data = {}) {
         if (!this.isLoggedIn()) return this.reject('Sign in to update the profile.');
@@ -148,6 +153,7 @@ export default class AuthApi extends BaseApi {
         for (const key of ['name', 'email', 'phone', 'address']) {
             if (data[key] !== undefined && data[key] !== null) body[key] = data[key];
         }
+        if (data.customFields !== undefined && data.customFields !== null) body.custom_fields = data.customFields;
 
         const response = await this.client.withoutNotifier(() => this.call('updateProfile', { body }));
         const user = response?.user || { ...(this.user || {}), ...body };
