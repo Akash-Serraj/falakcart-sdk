@@ -14,6 +14,9 @@ import FalakElement from '../base.js';
  * script that has no way to query for the element.
  */
 export default class FalakModal extends FalakElement {
+    /** Matches .f-modal in the stylesheet; each open modal sits one step above the previous. */
+    static BASE_Z_INDEX = 1000;
+
     static observedAttributes = ['visible', 'modal-title', 'sub-title', 'width', 'position', 'is-loading'];
 
     get isClosable() { return this.attr('is-closable', 'true') !== 'false'; }
@@ -133,6 +136,17 @@ export default class FalakModal extends FalakElement {
     }
 
     afterRender() {
+        /*
+         * Created already open — <falak-login-modal> re-renders its inner
+         * modal with `visible` set — so attributeChangedCallback never ran
+         * the open path: no scroll lock, no z-index, and it surfaced UNDER
+         * the buy-now dialog that asked for it.
+         */
+        if (this.visible && !this._locked) {
+            this.lockScroll();
+            this.focusFirst();
+        }
+
         if (this._wired) return;
         this._wired = true;
 
@@ -205,13 +219,31 @@ export default class FalakModal extends FalakElement {
      * both when only the inner one closes.
      */
     lockScroll() {
+        if (this._locked) return;
+        this._locked = true;
+
         const depth = Number(document.body.dataset.falakModalDepth || 0) + 1;
         document.body.dataset.falakModalDepth = String(depth);
         document.body.classList.add('f-modal-open');
+
+        /*
+         * The same depth decides stacking. Every modal shares one z-index in
+         * CSS, so two open at once stacked by DOM order — the layout's login
+         * modal, placed early in the page, opened UNDER a buy-now dialog that
+         * asked for it. The modal opened last must be the one on top.
+         */
+        this.style.zIndex = String(FalakModal.BASE_Z_INDEX + depth);
     }
 
     releaseScroll() {
+        // Only a modal that took the lock may give it back: an inner modal
+        // torn down by a parent's re-render must not release someone else's.
+        if (!this._locked) return;
+        this._locked = false;
+
         const depth = Math.max(0, Number(document.body.dataset.falakModalDepth || 0) - 1);
+
+        this.style.zIndex = '';
 
         if (depth === 0) {
             delete document.body.dataset.falakModalDepth;

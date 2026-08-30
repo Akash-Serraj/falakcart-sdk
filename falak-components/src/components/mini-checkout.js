@@ -27,6 +27,27 @@ export default class FalakMiniCheckout extends FalakElement {
     };
 
     /** Finds or creates the page's dialog and opens it for a product. */
+    /**
+     * Brings back a buy-now the shopper left to sign in. The dialog is
+     * created on demand (below), so after the post-login reload there is no
+     * instance to resume itself — this runs once the SDK is ready and makes
+     * one if a pending item is waiting and the sign-in actually happened.
+     */
+    static resume() {
+        const sdk = window.falak;
+        if (!sdk?.storage) return;
+
+        const pending = sdk.storage.getWithTTL(FalakMiniCheckout.PENDING_KEY);
+        if (!pending) return;
+
+        sdk.storage.remove(FalakMiniCheckout.PENDING_KEY);
+
+        // A guest again (sign-in abandoned): the intent is stale, not resumable.
+        if (!sdk.auth?.isLoggedIn()) return;
+
+        FalakMiniCheckout.open(pending);
+    }
+
     static open(item) {
         let host = document.querySelector('falak-mini-checkout');
 
@@ -64,6 +85,9 @@ export default class FalakMiniCheckout extends FalakElement {
             placing: false,
         };
     }
+
+    /** Storage key for a buy-now interrupted by sign-in (see the sign-in click handler). */
+    static PENDING_KEY = 'buy_now.pending';
 
     get hasItem() { return !!this._item; }
     get isCod() { return this.paymentMethod()?.code === 'cash_on_delivery'; }
@@ -354,7 +378,15 @@ export default class FalakMiniCheckout extends FalakElement {
 
         this.listen(this, 'click', event => {
             const t = event.target;
-            if (t.closest('[data-mini-checkout-signin]')) { this.sdk.event.dispatch('auth::required'); return; }
+            if (t.closest('[data-mini-checkout-signin]')) {
+                // Signing in reloads the page (the login modal's call — the
+                // server-rendered chrome has to catch up), which would drop
+                // this dialog. Remember what was being bought so the reload
+                // brings it straight back, signed in and ready.
+                this.sdk.storage.setWithTTL(FalakMiniCheckout.PENDING_KEY, this._item, 15);
+                this.sdk.event.dispatch('auth::required');
+                return;
+            }
             const goto = t.closest('[data-mini-checkout-goto]');
             if (goto) { this.setStep(Number(goto.getAttribute('data-mini-checkout-goto'))); return; }
             if (t.closest('[data-mini-checkout-place]')) { this.place(); }
@@ -373,7 +405,19 @@ export default class FalakMiniCheckout extends FalakElement {
             this.submitAddress(event.target);
         });
 
-        this.listen(this, 'modal-close', () => { this._visible = false; this._item = null; this.render(); });
+        this.listen(this, 'modal-close', () => {
+            this._visible = false;
+            this._item = null;
+            this.sdk.storage.remove(FalakMiniCheckout.PENDING_KEY);
+            this.render();
+        });
+
+        this.resumePending();
+    }
+
+    /** A theme-placed element resumes through the same path as an on-demand one. */
+    resumePending() {
+        FalakMiniCheckout.resume();
     }
 
     disconnectedCallback() {

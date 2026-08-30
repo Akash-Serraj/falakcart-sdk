@@ -155,6 +155,10 @@ export function defineComponents() {
     if (typeof window !== 'undefined' && window.falak) {
         window.falak.components = Object.keys(REGISTRY);
         window.falak.event.emit('falak::components.defined', Object.keys(REGISTRY));
+
+        // A buy-now interrupted by sign-in comes back after the reload —
+        // there is no element on the page to do it, so the bundle does.
+        window.falak.onReady(() => FalakMiniCheckout.resume());
     }
 }
 
