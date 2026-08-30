@@ -69,6 +69,8 @@ import FalakOfferModal from './components/offer-modal.js';
 import FalakComments from './components/comments.js';
 import FalakQuestions from './components/questions.js';
 import FalakOffers from './components/offers.js';
+import FalakCountdown, { FalakCountDown } from './components/countdown.js';
+import FalakFilters from './components/filters.js';
 
 const REGISTRY = {
     // primitives — other components compose these
@@ -109,6 +111,9 @@ const REGISTRY = {
     'falak-notification-item': FalakNotificationItem,
     'falak-custom-fields': FalakCustomFields,
     'falak-price-range': FalakPriceRange,
+    'falak-filters': FalakFilters,
+    'falak-countdown': FalakCountdown,
+    'falak-count-down': FalakCountDown, // Salla spelling — same component
     'falak-datetime-picker': FalakDatetimePicker,
     'falak-search': FalakSearch,
     'falak-mini-checkout': FalakMiniCheckout,
@@ -163,5 +168,6 @@ export {
     FalakMenu, FalakBreadcrumb,
     FalakSocial, FalakPayments, FalakAppsIcons, FalakTrustBadges,
     FalakLoginModal, FalakUserMenu, FalakLocalizationModal, FalakOfferModal, FalakOffers, FalakComments,
+    FalakCountdown, FalakCountDown, FalakFilters,
     REGISTRY,
 };

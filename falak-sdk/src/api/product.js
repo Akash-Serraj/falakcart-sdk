@@ -18,6 +18,7 @@ export default class ProductApi extends BaseApi {
             notify: 'products/{product}/notify-availability',
             byCategory: 'categories/{category}/products',
             categories: 'categories',
+            filters: 'products/filters',
         };
     }
 
@@ -51,6 +52,18 @@ export default class ProductApi extends BaseApi {
         this.event.fetched(result);
 
         return result;
+    }
+
+    /**
+     * The listing sidebar's options — categories with counts, price bounds,
+     * rating, availability — scoped to a category when one is given. Shaped
+     * for <falak-filters>; see App\Services\Storefront\ProductFilters.
+     */
+    async filters({ category = null } = {}) {
+        const params = category ? { category_id: category } : {};
+        const response = await this.call('filters', { params });
+
+        return Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : []);
     }
 
     /**

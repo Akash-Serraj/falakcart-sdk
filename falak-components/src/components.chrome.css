@@ -1374,3 +1374,233 @@ body.f-modal-open { overflow: hidden; }
     margin-block-start: 0.5rem;
 }
 .f-datetime__slot.is-selected { border-color: var(--color-primary, #1d9e75); background: var(--color-primary, #1d9e75); color: var(--color-on-primary, #fff); }
+
+/* ========================================================================
+   Countdown — offer timers, pre-order clocks, and the offer band
+   ======================================================================== */
+
+.f-countdown { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+.f-countdown[hidden] { display: none; }
+.f-countdown--horizontal { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 1rem 1.25rem; }
+.f-countdown__prefix { font-weight: 600; color: var(--f-text); }
+.f-countdown__hint { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--f-text-soft); }
+
+/* Days → seconds reads the same way in both directions: it is a number, not a sentence. */
+.f-countdown__list {
+    display: flex;
+    direction: ltr;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    align-items: stretch;
+}
+
+.f-countdown__item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 2.6rem;
+    padding: 0.3rem 0.4rem;
+    color: var(--f-text);
+}
+
+.f-countdown__item[hidden] { display: none; }
+
+/* A colon before every visible unit but the first — `~` rather than `+`
+   so a unit auto-segments hid does not leave a stray colon on the next one. */
+.f-countdown:not(.f-countdown--boxed) .f-countdown__item:not([hidden]) ~ .f-countdown__item:not([hidden])::before {
+    content: ":";
+    position: absolute;
+    left: -0.35rem;
+    top: 0.25rem;
+    font-weight: 700;
+    color: var(--f-text-faint);
+}
+
+.f-countdown__value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+}
+
+.f-countdown__label { font-size: 0.7rem; color: var(--f-text-soft); margin-block-start: 0.15rem; }
+
+.f-countdown--boxed .f-countdown__list { gap: 0.5rem; }
+.f-countdown--boxed .f-countdown__item {
+    min-inline-size: 3.25rem;
+    padding: 0.45rem 0.5rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    background: var(--f-surface);
+}
+
+.f-countdown[data-size="sm"] .f-countdown__value { font-size: 0.95rem; }
+.f-countdown[data-size="sm"] .f-countdown__item { min-inline-size: 2.1rem; padding: 0.2rem 0.3rem; }
+.f-countdown[data-size="sm"] .f-countdown__label { font-size: 0.6rem; }
+.f-countdown[data-size="lg"] .f-countdown__value { font-size: 2rem; }
+.f-countdown[data-size="lg"] .f-countdown__item { min-inline-size: 4.25rem; padding: 0.6rem 0.75rem; }
+.f-countdown[data-size="lg"] .f-countdown__label { font-size: 0.8rem; }
+
+.f-countdown[data-color="light"] .f-countdown__value,
+.f-countdown[data-color="light"] .f-countdown__prefix,
+.f-countdown[data-color="light"] .f-countdown__ended { color: #fff; }
+.f-countdown[data-color="light"] .f-countdown__label { color: rgba(255, 255, 255, 0.75); }
+.f-countdown[data-color="light"].f-countdown--boxed .f-countdown__item { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.25); }
+.f-countdown[data-color="primary"].f-countdown--boxed .f-countdown__item { background: var(--color-primary, #1d9e75); border-color: transparent; }
+.f-countdown[data-color="primary"] .f-countdown__value { color: var(--color-on-primary, #fff); }
+.f-countdown[data-color="primary"] .f-countdown__label { color: var(--color-on-primary, #fff); opacity: 0.8; }
+
+.f-countdown__ended { margin: 0; font-weight: 600; color: var(--f-danger); }
+.f-countdown__ended[hidden] { display: none; }
+.f-countdown[data-ended="true"] .f-countdown__list { opacity: 0.45; }
+.f-countdown__invalid { margin: 0; font-size: 0.85rem; color: var(--f-danger); }
+
+.f-countdown__info { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; font-size: 0.9rem; color: var(--f-text-soft); }
+.f-countdown__info b { color: var(--f-text); }
+.f-countdown__pre-order { display: flex; flex-direction: column; align-items: center; }
+.f-countdown__button { display: inline-flex; align-items: center; gap: 0.45rem; }
+
+/* The band: headline, copy and button around the clock, on a coloured
+   (or pictured) panel. The element itself is the panel so the customizer's
+   background binding and the `image` attribute paint the same surface. */
+.f-countdown--band {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-lg, 1rem);
+    padding: clamp(2rem, 5vw, 3.5rem) clamp(1.25rem, 4vw, 3rem);
+    text-align: center;
+    background-size: cover;
+    background-position: center;
+}
+.f-countdown--band[data-theme="dark"] { background-color: #1f2430; color: #fff; }
+.f-countdown--band[data-theme="light"] { background-color: var(--color-surface-alt, #f4f5f7); color: var(--f-text); }
+.f-countdown--band[data-theme="primary"] { background-color: var(--color-primary, #1d9e75); color: var(--color-on-primary, #fff); }
+.f-countdown--image::before { content: ""; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); }
+.f-countdown--image[data-theme="light"]::before { background: rgba(255, 255, 255, 0.7); }
+
+.f-countdown__content { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1rem; max-inline-size: 60ch; margin-inline: auto; }
+.f-countdown__title { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); color: inherit; }
+.f-countdown__description { margin: 0; opacity: 0.9; color: inherit; }
+.f-countdown--band .f-countdown__list { margin-block: 0.5rem; }
+.f-countdown--band[data-theme="primary"] .f-countdown__item { background: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.3); }
+.f-countdown--band[data-theme="primary"] .f-countdown__button { border-color: currentColor; color: inherit; }
+
+/* ========================================================================
+   Filters — the listing sidebar
+   ======================================================================== */
+
+.f-filters { display: block; }
+.f-filters[hidden] { display: none; }
+.f-filters[aria-busy="true"] { opacity: 0.6; pointer-events: none; }
+
+.f-filters__widget { border-block-end: 1px solid var(--f-border); padding-block: 0.25rem 1rem; margin-block-end: 0.75rem; }
+.f-filters__widget:last-child { border-block-end: 0; }
+
+.f-filters__title { margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--f-text); }
+.f-filters__title > span { display: block; padding-block: 0.6rem; }
+
+.f-filters__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    inline-size: 100%;
+    padding: 0.6rem 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    text-align: start;
+    cursor: pointer;
+}
+
+/* The +/- glyph: a horizontal bar always, a vertical one until open. */
+.f-filters__plusminus { position: relative; inline-size: 0.75rem; block-size: 0.75rem; flex: none; }
+.f-filters__plusminus::before,
+.f-filters__plusminus::after {
+    content: "";
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 0;
+    inline-size: 100%;
+    block-size: 2px;
+    margin-block-start: -1px;
+    background: currentColor;
+    transition: transform 0.2s ease;
+}
+.f-filters__plusminus::after { transform: rotate(90deg); }
+.f-filters__widget[data-open="true"] .f-filters__plusminus::after { transform: rotate(0deg); }
+
+.f-filters__body { padding-block-start: 0.25rem; }
+.f-filters__body[hidden] { display: none; }
+
+.f-filters__search { inline-size: 100%; margin-block-end: 0.6rem; font-size: 0.85rem; }
+
+.f-filters__values { display: flex; flex-direction: column; gap: 0.55rem; }
+
+.f-filters__option {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.9rem;
+    color: var(--f-text);
+    cursor: pointer;
+}
+.f-filters__option.is-selected { font-weight: 600; }
+.f-filters__checkbox,
+.f-filters__radio { flex: none; inline-size: 1rem; block-size: 1rem; margin: 0; accent-color: var(--color-primary, #1d9e75); cursor: pointer; }
+.f-filters__option-name { flex: 1; min-inline-size: 0; }
+.f-filters__count { font-size: 0.8rem; color: var(--f-text-faint); font-variant-numeric: tabular-nums; }
+.f-filters__option falak-rating-stars + .f-filters__option-name { flex: none; font-size: 0.8rem; color: var(--f-text-soft); }
+
+.f-filters__empty { margin: 0; font-size: 0.85rem; color: var(--f-text-soft); }
+
+.f-filters__more {
+    margin-block-start: 0.6rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-primary, #1d9e75);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.f-filters__chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.75rem; padding: 0; list-style: none; }
+.f-filters__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(29, 158, 117, 0.12);
+    color: var(--f-text);
+    font-size: 0.8rem;
+}
+.f-filters__chip-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 1.1rem;
+    block-size: 1.1rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--f-text-soft);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.f-filters__chip-remove:hover { background: rgba(0, 0, 0, 0.08); color: var(--f-text); }
+
+.f-filters__reset,
+.f-filters__footer .f-btn { inline-size: 100%; justify-content: center; }
+.f-filters__footer { padding-block-start: 0.5rem; }
