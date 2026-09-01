@@ -262,6 +262,16 @@ body.f-modal-open { overflow: hidden; }
 .f-slider__arrow--prev::before { transform: rotate(-45deg); margin-inline-start: 0.2rem; }
 .f-slider__arrow--next::before { transform: rotate(135deg); margin-inline-end: 0.2rem; }
 
+/*
+    The chevron's SIDES are logical (they follow the writing mode) but its
+    ROTATION is not — in RTL the same -45° turned the glyph downwards. The
+    angles flip with the direction so prev/next always point outwards.
+*/
+[dir='rtl'] .f-slider__arrow--prev::before,
+.f-slider[dir='rtl'] .f-slider__arrow--prev::before { transform: rotate(45deg); }
+[dir='rtl'] .f-slider__arrow--next::before,
+.f-slider[dir='rtl'] .f-slider__arrow--next::before { transform: rotate(-135deg); }
+
 .f-slider:not(.f-slider--controls-outer) .f-slider__controls {
     position: absolute;
     inset-block-start: 50%;
@@ -297,6 +307,107 @@ body.f-modal-open { overflow: hidden; }
     border-radius: 999px;
     background: var(--color-primary, #1d9e75);
 }
+
+/* ---- gap + auto widths (slides-per-view="auto") ---- */
+.f-slider__track { gap: var(--f-slider-gap, 1rem); }
+.f-slider--per-auto .f-slider__track { grid-auto-columns: max-content; }
+
+/* ---- centered (blog / photos): active slide in the middle, edges peeking ---- */
+.f-slider--centered .f-slider__slide { scroll-snap-align: center; }
+.f-slider--centered .f-slider__track { scroll-padding-inline: 10%; padding-inline: 10%; }
+
+/* ---- vertical & fullscreen: the same track, snapping on the other axis ---- */
+@media (min-width: 768px) {
+    .f-slider--vertical .f-slider__track {
+        grid-auto-flow: row;
+        grid-auto-columns: unset;
+        grid-auto-rows: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        scroll-snap-type: y mandatory;
+        block-size: var(--f-slider-height, 480px);
+    }
+    .f-slider--vertical .f-slider__slide { scroll-snap-align: start; }
+}
+.f-slider--fullscreen { --f-slider-height: 100svh; }
+.f-slider--fullscreen .f-slider__track { padding-block-end: 0; }
+
+/* ---- type presets that are pure sizing ---- */
+.f-slider--fullwidth .f-slider__track,
+.f-slider--fullscreen .f-slider__track,
+.f-slider--testimonials .f-slider__track,
+.f-slider--blog .f-slider__track,
+.f-slider--thumbs .f-slider__track {
+    grid-auto-columns: 100%;
+}
+@media (min-width: 1024px) {
+    .f-slider--testimonials .f-slider__track { grid-auto-columns: calc((100% - var(--f-slider-gap, 1rem)) / 2); }
+}
+
+/* ---- overlays: badges and buttons an author placed over the gallery ---- */
+.f-slider__extra { position: absolute; z-index: 2; }
+
+/* ---- thumbs gallery ---- */
+.f-slider__body { display: flex; flex-direction: column; gap: 0.75rem; }
+.f-slider__body .f-slider__viewport { min-inline-size: 0; flex: 1; }
+
+.f-slider__thumbs { position: relative; }
+
+.f-slider__thumbs-track {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+}
+.f-slider__thumbs-track::-webkit-scrollbar { display: none; }
+
+.f-slider__thumb {
+    flex: none;
+    inline-size: 4.5rem;
+    block-size: 4.5rem;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: var(--f-radius);
+    overflow: hidden;
+    background: none;
+    cursor: pointer;
+    scroll-snap-align: start;
+    opacity: 0.7;
+    transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+.f-slider__thumb img { inline-size: 100%; block-size: 100%; object-fit: cover; display: block; }
+.f-slider__thumb:hover { opacity: 1; }
+.f-slider__thumb.is-active { opacity: 1; border-color: var(--color-primary, #1d9e75); }
+
+.f-slider__thumbs-nav {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline: -0.5rem;
+    display: flex;
+    justify-content: space-between;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+.f-slider__thumbs-nav .f-slider__arrow { pointer-events: auto; inline-size: 1.75rem; block-size: 1.75rem; }
+
+/* Thumbs beside the gallery on desktop. */
+@media (min-width: 768px) {
+    .f-slider--vertical-thumbs .f-slider__body { flex-direction: row-reverse; }
+    .f-slider--vertical-thumbs .f-slider__thumbs-track {
+        flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
+        max-block-size: var(--f-slider-height, 480px);
+        scroll-snap-type: y proximity;
+    }
+    .f-slider--vertical-thumbs .f-slider__thumbs-nav { display: none; }
+}
+
+/* Thumbs as a wrapping grid — no strip, no arrows. */
+.f-slider--grid-thumbs .f-slider__thumbs-track { flex-wrap: wrap; overflow: visible; }
+.f-slider--grid-thumbs .f-slider__thumbs-nav { display: none; }
 
 .f-products-slider { display: block; }
 .f-products-slider[hidden] { display: none; }

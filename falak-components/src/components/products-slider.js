@@ -105,7 +105,8 @@ export default class FalakProductsSlider extends FalakElement {
         // slider's to interpret, so this component owns none of them.
         ['block-title', 'block-subtitle', 'display-all-url', 'display-all-title',
          'slides-per-view', 'show-controls', 'controls-outer', 'pagination',
-         'auto-play', 'auto-play-delay', 'loop', 'arrows-centered', 'static-when-single']
+         'auto-play', 'auto-play-delay', 'loop', 'arrows-centered', 'static-when-single',
+         'type', 'gap', 'centered', 'vertical', 'auto-height', 'slider-config']
             .forEach(name => {
                 if (this.hasAttribute(name)) slider.setAttribute(name, this.getAttribute(name));
             });
