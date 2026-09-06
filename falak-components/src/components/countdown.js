@@ -66,6 +66,7 @@ export default class FalakCountdown extends FalakElement {
         'countdown.invalid_date': { ar: 'الرجاء إدخال الموعد بشكل صحيح', en: 'Please enter a valid date' },
         'countdown.pre_order_ends_in': { ar: 'ينتهي الطلب المسبق خلال:', en: 'Pre-order ends in:' },
         'countdown.expected_on': { ar: 'متوقَّع توفُّره بتاريخ:', en: 'Expected to be available on:' },
+        'countdown.offer_ends_in': { ar: 'ينتهي العرض خلال', en: 'Offer ends in' },
     };
 
     get preOrder() { return this.hasAttribute('pre-order') ? this.jsonAttr('pre-order', null) : null; }

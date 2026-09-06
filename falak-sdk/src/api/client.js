@@ -85,6 +85,24 @@ export default class ApiClient {
      * @param {string} path    resolved endpoint, relative to the API base
      * @param {object} options { method, params, body, headers, signal }
      */
+    /**
+     * Collapses identical GETs that are in flight AT THE SAME MOMENT.
+     *
+     * A page has many independent components and no way for them to know what
+     * the others are asking for. A product page was issuing `GET /products`
+     * three times (two lists and a slider), `GET /products/288` twice (two
+     * cards for the same product each resolving their variants) and
+     * `GET /special-offers` once per card — every one of them the same URL,
+     * every one of them started before the first had answered.
+     *
+     * This is a COALESCER, not a cache: the entry is dropped the moment the
+     * promise settles, so a later call always goes to the network and nothing
+     * stale is ever served. Two rules keep it safe:
+     *
+     *   - GET only. A duplicate POST is a second cart line, not a wasted read.
+     *   - Never when the caller passed its own `signal`. Sharing a promise
+     *     would let one caller's abort() cancel another's request.
+     */
     async request(path, options = {}) {
         const method = (options.method || 'get').toUpperCase();
         const url = new URL(this.helpers.url.api(path), window.location.origin);
@@ -95,6 +113,28 @@ export default class ApiClient {
                 ? value.forEach(item => url.searchParams.append(`${key}[]`, item))
                 : url.searchParams.set(key, value);
         });
+
+        if (method !== 'GET' || options.signal) {
+            return this.performRequest(path, options, method, url);
+        }
+
+        this._inflight ??= new Map();
+
+        const key = url.toString();
+        const running = this._inflight.get(key);
+
+        if (running) return running;
+
+        const promise = this.performRequest(path, options, method, url)
+            .finally(() => this._inflight.delete(key));
+
+        this._inflight.set(key, promise);
+
+        return promise;
+    }
+
+    /** The actual round trip. Callers go through request(). */
+    async performRequest(path, options, method, url) {
 
         /*
          * Every request has a deadline. A request that never returns (a

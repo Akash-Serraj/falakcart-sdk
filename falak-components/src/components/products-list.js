@@ -3,6 +3,7 @@ import FalakElement from '../base.js';
 /**
  * <falak-products-list limit="8" columns="4">
  * <falak-products-list category="3" limit="12" search="shirt">
+ * <falak-products-list sort="top_rated" product-card-component="my-card">
  *
  * Component #5, and the one that closes the loop: it is the only component in
  * the starter set that owns a request lifecycle (loading -> loaded | empty |
@@ -12,10 +13,18 @@ import FalakElement from '../base.js';
  * the card stays the single definition of what a product looks like.
  */
 export default class FalakProductsList extends FalakElement {
-    static observedAttributes = ['limit', 'category', 'search', 'columns', 'page'];
+    static observedAttributes = ['limit', 'category', 'search', 'columns', 'page', 'sort'];
 
     get limit() { return this.numAttr('limit', 8); }
     get page() { return this.numAttr('page', 1); }
+
+    /**
+     * Which element renders each product. Same opt-in <falak-products-slider>
+     * already offers, so the two list components share one vocabulary: a theme
+     * with its own card names it here, and everything that does not pass the
+     * attribute keeps rendering <falak-product-card> exactly as before.
+     */
+    get cardTag() { return this.attr('product-card-component', 'falak-product-card'); }
 
     query() {
         return {
@@ -23,6 +32,10 @@ export default class FalakProductsList extends FalakElement {
             page: this.page,
             category: this.attr('category'),
             search: this.attr('search'),
+            // Understood by the product API: best_selling | top_rated | on_offer.
+            // Absent means the endpoint's own order, which is what every
+            // existing caller gets today.
+            sort: this.attr('sort') || null,
         };
     }
 
@@ -124,7 +137,7 @@ export default class FalakProductsList extends FalakElement {
          * otherwise have to survive two rounds of escaping.
          */
         this.items.forEach(product => {
-            const card = document.createElement('falak-product-card');
+            const card = document.createElement(this.cardTag);
             card._product = product;
             card.setAttribute('product-id', product.id);
             card.setAttribute('source', this.attr('source') || 'products-list');

@@ -114,9 +114,20 @@ export default class FalakAnnouncement extends FalakElement {
         this.setAttribute('dir', this.sdk.lang.isRtl ? 'rtl' : 'ltr');
         this.classList.toggle('f-announce--scroll', message.scroll);
 
+        /*
+         * dir="auto" on the text, not just on the host.
+         *
+         * The bar's direction follows the page's language, which is right for
+         * the layout. The message itself may not be in that language though —
+         * a declaration is stored once and shown on every locale — and Arabic
+         * text laid out left-to-right puts its trailing punctuation and emoji
+         * at the wrong end and reads as broken. "auto" lets the browser take
+         * the direction from the text's own first strong character, so a
+         * message renders correctly whatever page it lands on.
+         */
         const content = message.link
-            ? `<a class="f-announce__link" href="${this.escape(message.link)}">${this.escape(message.text)}</a>`
-            : `<span class="f-announce__text">${this.escape(message.text)}</span>`;
+            ? `<a class="f-announce__link" dir="auto" href="${this.escape(message.link)}">${this.escape(message.text)}</a>`
+            : `<span class="f-announce__text" dir="auto">${this.escape(message.text)}</span>`;
 
         this.innerHTML = `
             <div class="f-announce__inner">

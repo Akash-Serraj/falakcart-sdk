@@ -23,21 +23,39 @@ export default class OfferApi extends BaseApi {
      * whose offers endpoint is unhappy should not toast a shopper about it.
      */
     async fetch() {
-        // One request per page: the header banner and any offers section on
-        // the same page share the result instead of racing the endpoint.
+        /*
+         * One request per page — and the memo has to hold the PROMISE, not the
+         * resolved list.
+         *
+         * Caching the result only deduplicates callers that arrive after the
+         * first response has landed. Callers that arrive in the same tick all
+         * saw `_fetched` still undefined and all fired: two elements on a page
+         * got away with it, but a listing whose sixty product cards each ask
+         * for offers issued sixty identical requests. Storing the in-flight
+         * promise makes every caller after the first await the same one.
+         */
         if (this._fetched) return this._fetched;
 
-        try {
-            const response = await this.client.withoutNotifier(() => this.call('active'));
-            const offers = Array.isArray(response) ? response : (response?.data ?? []);
+        this._fetched = (async () => {
+            try {
+                const response = await this.client.withoutNotifier(() => this.call('active'));
+                const offers = Array.isArray(response) ? response : (response?.data ?? []);
 
-            this.event.fetched(offers);
+                this.event.fetched(offers);
 
-            return this._fetched = offers;
-        } catch (error) {
-            this.event.fetchFailed(error);
-            return [];
-        }
+                return offers;
+            } catch (error) {
+                this.event.fetchFailed(error);
+
+                // Not cached as a permanent empty: a failed request should not
+                // silence offers for the rest of the page's life.
+                this._fetched = null;
+
+                return [];
+            }
+        })();
+
+        return this._fetched;
     }
 
 }

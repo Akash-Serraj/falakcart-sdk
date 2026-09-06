@@ -19,6 +19,22 @@ export default class FalakProductsSlider extends FalakElement {
     /** Sources that are meaningful without a value. */
     static VALUELESS = ['latest', 'offers', 'sales', 'top-rated'];
 
+    /*
+     * source -> the sort the listing endpoint understands.
+     *
+     * 'offers', 'sales' and 'top-rated' were advertised in the source
+     * vocabulary but every one of them fell through to the same unfiltered
+     * fetch, so a page with four rails rendered the same products four
+     * times. An endpoint that does not understand the sort still answers
+     * with the latest — the previous behaviour, not an error.
+     */
+    static SORTS = {
+        latest: null,
+        sales: 'best_selling',
+        offers: 'on_offer',
+        'top-rated': 'top_rated',
+    };
+
     get source() { return this.attr('source', 'latest'); }
     get sourceValue() { return this.attr('source-value'); }
     get limit() { return this.numAttr('limit', 10); }
@@ -44,6 +60,7 @@ export default class FalakProductsSlider extends FalakElement {
             const result = await this.sdk.api.withoutNotifier(() => this.sdk.product.fetch({
                 limit: this.limit,
                 category: this.source === 'category' ? this.sourceValue : null,
+                sort: FalakProductsSlider.SORTS[this.source] || null,
             }));
 
             this.products = result.products;

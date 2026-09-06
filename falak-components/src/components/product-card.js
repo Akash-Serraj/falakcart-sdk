@@ -8,15 +8,25 @@ import FalakElement from '../base.js';
  * normalises one product record into markup and hosts other components inside
  * itself (the rating stars), which is the pattern every card-shaped component
  * on the storefront will follow.
+ *
+ * | attribute   | role                                                      |
+ * | hide-offer  | suppress the special-offer ribbon on this card            |
  */
 export default class FalakProductCard extends FalakElement {
-    static observedAttributes = ['product', 'product-id'];
+    static observedAttributes = ['product', 'product-id', 'hide-offer'];
 
     get product() {
         return this._product || this.jsonAttr('product', null);
     }
 
     async setup() {
+        await this.loadProduct();
+
+        // Deliberately NOT awaited — see loadOffer().
+        this.loadOffer();
+    }
+
+    async loadProduct() {
         if (this.product || !this.boolAttr('fetch')) return;
 
         const id = this.attr('product-id');
@@ -31,6 +41,55 @@ export default class FalakProductCard extends FalakElement {
         } finally {
             this.setBusy(false);
         }
+    }
+
+    /** Themes that do not want the ribbon opt out per card or per list. */
+    get hideOffer() { return this.boolAttr('hide-offer'); }
+
+    /** The dashboard master switch gates every offers surface. */
+    get offersEnabled() {
+        return !!(this.sdk.config.get('store.settings.marketing', {}) || {}).enable_special_offers;
+    }
+
+    /**
+     * The special-offer ribbon.
+     *
+     * It names the offer and NEVER quotes its value. A "cart" scoped offer —
+     * which is what most of them are — only pays out once the whole cart
+     * qualifies (`min_cart_amount`), so printing "50%" beside a card price
+     * promises a number checkout will not honour. A per-item price cut already
+     * has its own display: `discount_price_cents` renders as the struck-through
+     * "was" price above. This says "there is an offer on this one" and lets the
+     * product page state the terms.
+     *
+     * Resolved WITHOUT blocking first paint: connectedCallback awaits setup()
+     * before rendering, so awaiting the offers request here would hold up every
+     * card on a listing behind one round trip. Instead the card paints now and
+     * only the cards that actually carry an offer repaint once. falak.offer
+     * .fetch() memoises its promise, so forty cards cost one request.
+     */
+    loadOffer() {
+        if (this.hideOffer || !this.offersEnabled) return;
+
+        this.sdk.offer.fetch().then(offers => {
+            if (this._offer) return;
+
+            const id = Number(this.product?.id ?? this.attr('product-id'));
+            if (!Number.isFinite(id)) return;
+
+            /*
+             * The same rule <falak-offers below-product> applies: an offer
+             * belongs to a product only when it names it. An empty product_ids
+             * means "not shown here", not "applies to everything".
+             */
+            const offer = (offers || []).find(row =>
+                Array.isArray(row.product_ids) && row.product_ids.map(Number).includes(id));
+
+            if (!offer) return;
+
+            this._offer = offer;
+            if (this.ready) this.render();
+        });
     }
 
     /**
@@ -128,6 +187,12 @@ export default class FalakProductCard extends FalakElement {
         const showRating = product.rating !== null && !this.isMinimal && !this.isFullImage;
         const showStock = !product.inStock && !this.isMinimal;
 
+        // Minimal is the one variant with no room for it; a full-image card is
+        // the most visual of them and carries a ribbon well.
+        const offerLabel = this._offer && !this.isMinimal
+            ? (this._offer.offer_title || this.trans('offer.title'))
+            : '';
+
         /*
          * The special card's urgency line: remaining stock, only when it is a
          * real finite number. Raed draws a donut gauge; a plain counted line
@@ -146,6 +211,7 @@ export default class FalakProductCard extends FalakElement {
                         ? `<img src="${this.escape(product.image)}" alt="" loading="lazy" decoding="async">`
                         : `<span class="f-card__placeholder"></span>`}
                     ${showBadge ? `<span class="f-card__badge">${this.escape(this.trans('product.sale'))}</span>` : ''}
+                    ${offerLabel ? `<span class="f-card__offer">${this.escape(offerLabel)}</span>` : ''}
                 </a>
 
                 <div class="f-card__body">

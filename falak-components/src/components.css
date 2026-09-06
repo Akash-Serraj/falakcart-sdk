@@ -282,6 +282,31 @@ falak-rating-stars[data-busy] { opacity: 0.5; }
     font-weight: 700;
 }
 
+/*
+ * The special-offer ribbon. Opposite corner to .f-card__badge, because a
+ * discounted product that is ALSO in an offer carries both and they must not
+ * stack on top of each other.
+ *
+ * It names the offer; it never carries its value. See loadOffer() in
+ * product-card.js for why.
+ */
+.f-card__offer {
+    position: absolute;
+    inset-block-start: 0.5rem;
+    inset-inline-end: 0.5rem;
+    max-inline-size: 65%;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.25rem;
+    background: var(--f-danger, #c0392b);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .f-card__body {
     display: flex;
     flex-direction: column;

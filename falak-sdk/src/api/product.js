@@ -29,7 +29,7 @@ export default class ProductApi extends BaseApi {
      * and page today, and becomes a query string the day the endpoint supports
      * one — without the component changing.
      */
-    async fetch({ limit = null, page = 1, category = null, search = null } = {}) {
+    async fetch({ limit = null, page = 1, category = null, search = null, sort = null } = {}) {
         const endpoint = category ? ['byCategory', category] : 'list';
 
         let products = await this.cachedList(category ? `category:${category}` : 'list', endpoint);
@@ -39,6 +39,23 @@ export default class ProductApi extends BaseApi {
             products = products.filter(product =>
                 `${product.name ?? ''} ${product.name_ar ?? ''}`.toLowerCase().includes(needle));
         }
+
+
+        // Interim: GET /storefront/products has no sort parameter, so ordering
+
+
+        // happens here over the full list the endpoint already returned. The
+
+
+        // param is sent too, so this becomes a no-op the day the server
+
+
+        // understands it rather than needing another change.
+
+
+        if (sort) products = ProductApi.applySort(products, sort);
+
+
 
         const total = products.length;
 
@@ -75,6 +92,41 @@ export default class ProductApi extends BaseApi {
      * short staleness window is the right trade for cutting that down to
      * one request per search session.
      */
+    /**
+     * Ordering for the source vocabulary <falak-products-slider> advertises.
+     * Every field is read defensively: the listing payload is a bare Eloquent
+     * dump and none of these columns are guaranteed to be present.
+     */
+    static applySort(products, sort) {
+        const num = (v) => Number(v ?? 0) || 0;
+        const price = (p) => num(p.sale_price ?? p.price);
+        const was = (p) => num(p.regular_price ?? p.old_price ?? p.price);
+        const discount = (p) => (was(p) > price(p) ? (was(p) - price(p)) / was(p) : 0);
+
+        const list = [...products];
+
+        if (sort === 'best_selling') {
+            return list.sort((a, b) => num(b.sales_count ?? b.orders_count) - num(a.sales_count ?? a.orders_count));
+        }
+
+        if (sort === 'top_rated') {
+            return list.sort((a, b) =>
+                // reviews_avg_rating is what a withAvg() aggregate is named,
+                // which is how the storefront endpoints return it.
+                num(b.rating ?? b.average_rating ?? b.reviews_avg_rating)
+                - num(a.rating ?? a.average_rating ?? a.reviews_avg_rating)
+                || num(b.reviews_count) - num(a.reviews_count));
+        }
+
+        if (sort === 'on_offer') {
+            // A filter, not just an order: a rail titled offers showing
+            // full-price products is worse than showing fewer.
+            return list.filter(p => discount(p) > 0).sort((a, b) => discount(b) - discount(a));
+        }
+
+        return list;
+    }
+
     async cachedList(key, endpoint) {
         this._cache ??= new Map();
         const cached = this._cache.get(key);
