@@ -68,6 +68,8 @@ import FalakLocalizationModal from './components/localization-modal.js';
 import FalakOfferModal from './components/offer-modal.js';
 import FalakComments from './components/comments.js';
 import FalakQuestions from './components/questions.js';
+import FalakContactForm from './components/contact-form.js';
+import FalakContactLinks from './components/contact-links.js';
 import FalakOffers from './components/offers.js';
 import FalakCountdown, { FalakCountDown } from './components/countdown.js';
 import FalakFilters from './components/filters.js';
@@ -143,6 +145,8 @@ const REGISTRY = {
     'falak-offers': FalakOffers,
     'falak-comments': FalakComments,
     'falak-questions': FalakQuestions,
+    'falak-contact-form': FalakContactForm,
+    'falak-contact-links': FalakContactLinks,
 };
 
 export function defineComponents() {

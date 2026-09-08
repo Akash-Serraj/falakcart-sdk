@@ -1244,3 +1244,153 @@ body.f-drawer-open { overflow: hidden; }
 .f-add-toast__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
 .f-add-toast__actions .f-btn { justify-content: center; text-align: center; }
 @media (prefers-reduced-motion: reduce) { .f-add-toast { transition: none; } }
+
+/* ===== contact form ===== */
+/* Every colour goes through the --f-* tokens, which fall back to the theme's
+   --color-* names, so a theme restyles this form by setting the variables it
+   already sets rather than by overriding selectors here. */
+
+.f-contact {
+    display: grid;
+    gap: 1rem;
+}
+
+.f-contact__row {
+    display: grid;
+    /* Two up where there is room, stacked where there is not — the phone and
+       email pair is the only row that shares a line. */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap: 1rem;
+}
+
+.f-contact__field { display: grid; gap: 0.5rem; min-inline-size: 0; }
+
+.f-contact__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--f-text);
+}
+.f-contact__label-icon {
+    display: inline-flex;
+    color: var(--f-text-soft);
+}
+.f-contact__required { color: var(--f-danger); line-height: 1; }
+
+.f-contact__input {
+    inline-size: 100%;
+    padding: 0.8rem 1rem;
+    border: 1px solid transparent;
+    border-radius: var(--f-radius);
+    /* The field is the light plate in the reference, sitting on a tinted
+       panel the theme paints — hence a background of its own rather than a
+       border alone. */
+    background: var(--f-input-bg, #ffffff);
+    color: var(--f-text);
+    font: inherit;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+}
+.f-contact__input::placeholder { color: var(--f-text-faint); }
+.f-contact__input:focus {
+    outline: none;
+    border-color: var(--color-primary, #b08658);
+}
+
+.f-contact__input--area {
+    min-block-size: 8rem;
+    resize: vertical;
+}
+
+/* File inputs cannot be styled through the input box itself in every engine,
+   so the plate is kept and only the button part is toned down. */
+.f-contact__input[type="file"] { padding: 0.6rem 0.75rem; cursor: pointer; }
+.f-contact__input[type="file"]::file-selector-button {
+    margin-inline-end: 0.75rem;
+    padding: 0.4rem 0.9rem;
+    border: 0;
+    border-radius: calc(var(--f-radius) - 2px);
+    background: var(--f-border);
+    color: var(--f-text);
+    font: inherit;
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.f-contact__error {
+    margin: 0;
+    color: var(--f-danger);
+    font-size: 0.875rem;
+}
+.f-contact__error[hidden] { display: none; }
+
+.f-contact falak-button { margin-block-start: 0.25rem; }
+
+/* The confirmation sits WITH the form, under the button — a banner on the
+   row, not a panel in the form's place. */
+.f-contact__done {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: var(--f-radius);
+    background: var(--f-success-bg, rgba(22, 163, 74, 0.1));
+    color: var(--f-text);
+}
+.f-contact__done[hidden] { display: none; }
+.f-contact__done p { margin: 0; font-size: 0.9375rem; line-height: 1.6; }
+.f-contact__done-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    inline-size: 2rem;
+    block-size: 2rem;
+    border-radius: 50%;
+    background: var(--f-success, #16a34a);
+    color: #fff;
+}
+
+/* ===== contact links ===== */
+/* The footer's "how to reach us" row: outlined chips, icon then label. Sits
+   above <falak-social>, which is the same shop's profiles as bare icons. */
+
+.f-contact-links { display: block; }
+.f-contact-links[hidden] { display: none; }
+
+.f-contact-links__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+}
+
+.f-contact-links__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.5rem 0.9rem;
+    border: 1px solid currentColor;
+    border-radius: var(--f-radius);
+    color: inherit;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    text-decoration: none;
+    /* The chip borrows the footer's ink at 65% so the outline reads as a
+       hairline on a dark ground without needing a second colour token. */
+    opacity: 0.65;
+    transition: opacity 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+.f-contact-links__chip:hover,
+.f-contact-links__chip:focus-visible {
+    opacity: 1;
+    color: var(--color-primary, #b08658);
+    text-decoration: none;
+}
+
+.f-contact-links__icon { display: inline-flex; flex: none; }
+.f-contact-links__label { white-space: nowrap; }

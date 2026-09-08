@@ -28,6 +28,7 @@ import BuyNowApi from './api/buyNow.js';
 import AuthApi from './api/auth.js';
 import LocalizationApi from './api/localization.js';
 import OfferApi from './api/offer.js';
+import ContactApi from './api/contact.js';
 import Lang from './lang.js';
 import Notify from './notify.js';
 
@@ -98,6 +99,7 @@ function createSdk() {
         auth: new AuthApi(client, events.auth, config, storage),
         localization: new LocalizationApi(client, events.localization, config, storage),
         offer: new OfferApi(client, events.offer, storage),
+        contact: new ContactApi(client, events.contact),
         request: (path, options) => client.request(path, options),
         withoutNotifier: callback => client.withoutNotifier(callback),
     };
@@ -130,6 +132,7 @@ function createSdk() {
         auth: domain(api.auth, events.auth),
         localization: domain(api.localization, events.localization),
         offer: domain(api.offer, events.offer),
+        contact: domain(api.contact, events.contact),
         ui: domain({}, events.ui),
     };
 

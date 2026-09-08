@@ -7,6 +7,25 @@ import FalakElement from '../base.js';
  * Renders nothing at all when the merchant has no apps — a footer column with a
  * heading and no content below it looks like a rendering bug.
  */
+/**
+ * A store link the merchant typed, made absolute.
+ *
+ * These arrive from a plain text field, and a merchant types "play.google.com"
+ * at least as often as the full URL. Left alone that is a RELATIVE path: the
+ * badge would quietly navigate to /play.google.com on the shop's own domain.
+ * A value that already carries a scheme, or is protocol-relative, is left
+ * exactly as it is.
+ */
+function absolute(url) {
+    const value = String(url).trim();
+
+    if (value === '' || /^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith('//')) {
+        return value;
+    }
+
+    return `https://${value}`;
+}
+
 export default class FalakAppsIcons extends FalakElement {
     static observedAttributes = ['vertical', 'hide-title'];
 
@@ -21,7 +40,11 @@ export default class FalakAppsIcons extends FalakElement {
 
         return Object.entries(configured || {})
             .filter(([store, url]) => url && FalakAppsIcons.STORES[store])
-            .map(([store, url]) => ({ store, url, ...FalakAppsIcons.STORES[store] }));
+            .map(([store, url]) => ({
+                store,
+                url: absolute(url),
+                ...FalakAppsIcons.STORES[store],
+            }));
     }
 
     render() {

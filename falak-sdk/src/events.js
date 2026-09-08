@@ -97,6 +97,18 @@ class BuyNowEvents extends Namespace {
     }
 }
 
+class ContactEvents extends Namespace {
+    constructor(emitter) {
+        super(emitter);
+        this.namespace = 'contact';
+        this.events = {
+            sent: 'sent',
+            sendFailed: 'send.failed',
+        };
+        this.register();
+    }
+}
+
 class QuestionEvents extends Namespace {
     constructor(emitter) {
         super(emitter);
@@ -184,6 +196,7 @@ export default function registerEvents(emitter) {
         checkout: new CheckoutEvents(emitter),
         buyNow: new BuyNowEvents(emitter),
         auth: new AuthEvents(emitter),
+        contact: new ContactEvents(emitter),
         localization: new LocalizationEvents(emitter),
         offer: new OfferEvents(emitter),
         ui: new UiEvents(emitter),

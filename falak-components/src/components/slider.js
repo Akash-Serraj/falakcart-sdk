@@ -206,7 +206,7 @@ export default class FalakSlider extends FalakElement {
         track.scrollTo({ left: track.scrollLeft + delta, behavior });
     }
 
-    slideNext() { return this.slideTo(this.currentIndex + 1); }
+    slideNext() { return this.slideTo(this.nextIndex()); }
     slidePrev() { return this.slideTo(this.currentIndex - 1); }
 
     /* Salla's loop variants — same movement here: clampIndex already wraps. */
@@ -577,6 +577,23 @@ export default class FalakSlider extends FalakElement {
         return index < 0 ? last : index > last ? 0 : index;
     }
 
+    /**
+     * The next index for a forward move, wrapping when looping.
+     *
+     * WRAPPING IS DECIDED ON THE SCROLL, NOT THE SLIDE COUNT. currentIndex is
+     * the slide nearest the track's leading edge, so with slides-per-view > 1
+     * it tops out at (count - perView) — three, for six slides shown three at
+     * a time. clampIndex only wraps above `last` (five), which that index can
+     * never reach, so a looping autoplay asked for slide four forever while
+     * the track sat pinned at its end: the rail played through once and
+     * stopped. `_atEnd` is the honest test, and syncState already maintains it.
+     */
+    nextIndex() {
+        if (this.loop && this._atEnd) return 0;
+
+        return this.clampIndex(this.currentIndex + 1);
+    }
+
     /* ------------------------------------------------ gallery integrations */
 
     /**
@@ -671,7 +688,7 @@ export default class FalakSlider extends FalakElement {
         if (!this._inView) return;
 
         this.stopAutoPlay();
-        this._timer = setInterval(() => this.slideTo(this.clampIndex(this.currentIndex + 1)), this.autoPlayDelay);
+        this._timer = setInterval(() => this.slideTo(this.nextIndex()), this.autoPlayDelay);
 
         // Pause while the pointer is over the slider — advancing under a
         // reader's cursor is the classic carousel annoyance.
