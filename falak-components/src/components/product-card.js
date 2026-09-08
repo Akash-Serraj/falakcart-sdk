@@ -122,11 +122,26 @@ export default class FalakProductCard extends FalakElement {
             price: onSale ? wasPrice : price,
             compareAt: onSale ? price : null,
             currency: product.currency || null,
+            /*
+             * `in_stock` / `has_variations` are the platform's own resolved
+             * answers, sent by the server-rendered product shape a theme gets
+             * in page_data. They are checked FIRST because the raw API row
+             * carries neither, so nothing about the fetched path changes — but
+             * a theme that passes a server product straight into this card no
+             * longer reads "out of stock, no options" from columns that shape
+             * never had. In particular `variations` arrives as [] on a listing
+             * (the relation is only loaded on the product page) while
+             * has_variations is true, so the array must not get the last word.
+             */
             // In stock while the product OR any of its variants is (checkout
             // stock-checks the chosen variant, not the product-level number).
-            inStock: product.quantity === null || Number(product.quantity) > 0 || !!product.allow_backorders
-                || (Array.isArray(product.variations) && product.variations.some(v => v.quantity === null || v.quantity === undefined || Number(v.quantity) > 0)),
-            hasVariations: Array.isArray(product.variations) ? product.variations.length > 0 : !!product.has_variations,
+            inStock: product.in_stock !== undefined
+                ? !!product.in_stock
+                : (product.quantity === null || Number(product.quantity) > 0 || !!product.allow_backorders
+                    || (Array.isArray(product.variations) && product.variations.some(v => v.quantity === null || v.quantity === undefined || Number(v.quantity) > 0))),
+            hasVariations: product.has_variations !== undefined
+                ? !!product.has_variations
+                : (Array.isArray(product.variations) && product.variations.length > 0),
             rating: product.average_rating ?? null,
             reviews: product.reviews_count ?? 0,
         };

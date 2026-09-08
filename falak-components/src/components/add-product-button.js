@@ -221,6 +221,17 @@ export default class FalakAddProductButton extends FalakElement {
      * "No query results for model ProductVariation".
      */
     speaksFor(el) {
+        /*
+         * A picker inside a dialog that is not on screen speaks for nobody.
+         *
+         * The quick-add dialog holds a <falak-product-options> for the same
+         * product as the card that opened it. Once closed, that copy is still
+         * in the document until it is torn down, and a card button searching
+         * document-wide would adopt it — skipping the dialog on the next click
+         * and adding whatever variant was left selected in the hidden one.
+         */
+        if (el.closest?.('falak-modal:not([visible])')) return false;
+
         const owner = el.getAttribute?.('product-id');
 
         return !owner || String(owner) === String(this.productId);

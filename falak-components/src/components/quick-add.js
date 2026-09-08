@@ -120,6 +120,33 @@ export default class FalakQuickAdd extends FalakElement {
             window.setTimeout(() => modal.close(), 350);
         });
 
+        /*
+         * Drop the modal once it closes, rather than leaving it parked in the
+         * document until the next open().
+         *
+         * It carries a loaded <falak-product-options> for this product, and
+         * <falak-add-product-button> looks for its options element across the
+         * whole document. A closed dialog left in the tree was therefore found
+         * by the CARD's button on the next click: it stopped opening the dialog
+         * and added straight to the cart, using whatever variant happened to be
+         * selected in the invisible copy. Escape and backdrop clicks close the
+         * modal without telling this component, so the attribute is watched
+         * rather than hooking close().
+         */
+        const watcher = new MutationObserver(() => {
+            if (modal.hasAttribute('visible')) return;
+
+            watcher.disconnect();
+
+            // After the close transition, so the dialog is not yanked mid-fade.
+            window.setTimeout(() => {
+                if (this._modal === modal) this._modal = null;
+                modal.remove();
+            }, 400);
+        });
+
+        watcher.observe(modal, { attributes: true, attributeFilter: ['visible'] });
+
         // Let the modal render before opening so its transition plays.
         await Promise.resolve();
         modal.open();

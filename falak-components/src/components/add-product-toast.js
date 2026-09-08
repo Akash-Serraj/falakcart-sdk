@@ -46,9 +46,7 @@ export default class FalakAddProductToast extends FalakElement {
         const lines = this.sdk.cart.lines || [];
         const count = lines.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
         const total = lines.reduce((sum, item) => sum + Number(item.total || 0), 0);
-        const variant = line.variation && typeof line.variation === 'object'
-            ? Object.values(line.variation).filter(Boolean).join(' / ')
-            : '';
+        const variant = this.variationLabel(line.variation);
 
         this.innerHTML = `
             <div class="f-add-toast__card" role="status">
@@ -141,6 +139,32 @@ export default class FalakAddProductToast extends FalakElement {
         if (this._leaving) clearTimeout(this._leaving);
         this._timer = null;
         this._leaving = null;
+    }
+
+    /**
+     * The chosen options for a cart line — "Red / Large".
+     *
+     * `line.variation` is the API's whole variation ROW (id, tenant_id,
+     * product_id, prices, timestamps) with the selection nested under
+     * `attributes`. Reading its values directly put the record itself in the
+     * toast, timestamps and all.
+     */
+    variationLabel(variation) {
+        if (!variation || typeof variation !== 'object') return '';
+
+        let attributes = variation.attributes;
+
+        // The column is JSON; whether it arrives parsed depends on the endpoint.
+        if (typeof attributes === 'string') {
+            try { attributes = JSON.parse(attributes); } catch { return ''; }
+        }
+
+        if (!attributes || typeof attributes !== 'object') return '';
+
+        return Object.values(attributes)
+            // A nested object would render as "[object Object]".
+            .filter(value => value !== null && value !== undefined && value !== '' && typeof value !== 'object')
+            .join(' / ');
     }
 
     static ICON = '<svg class="f-add-toast__icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
