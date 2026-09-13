@@ -29,6 +29,7 @@ import AuthApi from './api/auth.js';
 import LocalizationApi from './api/localization.js';
 import OfferApi from './api/offer.js';
 import ContactApi from './api/contact.js';
+import NewsletterApi from './api/newsletter.js';
 import Lang from './lang.js';
 import Notify from './notify.js';
 
@@ -100,6 +101,7 @@ function createSdk() {
         localization: new LocalizationApi(client, events.localization, config, storage),
         offer: new OfferApi(client, events.offer, storage),
         contact: new ContactApi(client, events.contact),
+        newsletter: new NewsletterApi(client, events.newsletter),
         request: (path, options) => client.request(path, options),
         withoutNotifier: callback => client.withoutNotifier(callback),
     };
@@ -133,6 +135,7 @@ function createSdk() {
         localization: domain(api.localization, events.localization),
         offer: domain(api.offer, events.offer),
         contact: domain(api.contact, events.contact),
+        newsletter: domain(api.newsletter, events.newsletter),
         ui: domain({}, events.ui),
     };
 

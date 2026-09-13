@@ -151,6 +151,23 @@ export default class FalakModal extends FalakElement {
         this._wired = true;
 
         this.listen(this, 'click', event => {
+            /*
+             * The WRAPPER is the backdrop a shopper actually clicks.
+             *
+             * .f-modal__overlay carries data-modal-close and is the intended
+             * dismiss target, but .f-modal__wrapper is painted above it and
+             * spans the whole viewport — so every click on empty space landed
+             * on the wrapper, matched no close target, and the dialog could
+             * only be closed by its × button.
+             *
+             * Only the wrapper ITSELF counts as outside: a click on any
+             * descendant is a click inside the dialog, which must not dismiss.
+             */
+            if (event.target.classList?.contains('f-modal__wrapper')) {
+                this.dismiss('backdrop');
+                return;
+            }
+
             if (event.target.closest('[data-modal-close]')) {
                 this.dismiss(event.target.closest('.f-modal__overlay') ? 'backdrop' : 'close-button');
             }

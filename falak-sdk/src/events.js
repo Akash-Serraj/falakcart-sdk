@@ -109,6 +109,18 @@ class ContactEvents extends Namespace {
     }
 }
 
+class NewsletterEvents extends Namespace {
+    constructor(emitter) {
+        super(emitter);
+        this.namespace = 'newsletter';
+        this.events = {
+            subscribed: 'subscribed',
+            subscribeFailed: 'subscribe.failed',
+        };
+        this.register();
+    }
+}
+
 class QuestionEvents extends Namespace {
     constructor(emitter) {
         super(emitter);
@@ -197,6 +209,7 @@ export default function registerEvents(emitter) {
         buyNow: new BuyNowEvents(emitter),
         auth: new AuthEvents(emitter),
         contact: new ContactEvents(emitter),
+        newsletter: new NewsletterEvents(emitter),
         localization: new LocalizationEvents(emitter),
         offer: new OfferEvents(emitter),
         ui: new UiEvents(emitter),

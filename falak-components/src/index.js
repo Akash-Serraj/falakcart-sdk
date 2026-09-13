@@ -69,6 +69,7 @@ import FalakOfferModal from './components/offer-modal.js';
 import FalakComments from './components/comments.js';
 import FalakQuestions from './components/questions.js';
 import FalakContactForm from './components/contact-form.js';
+import FalakNewsletter from './components/newsletter.js';
 import FalakContactLinks from './components/contact-links.js';
 import FalakOffers from './components/offers.js';
 import FalakCountdown, { FalakCountDown } from './components/countdown.js';
@@ -146,6 +147,7 @@ const REGISTRY = {
     'falak-comments': FalakComments,
     'falak-questions': FalakQuestions,
     'falak-contact-form': FalakContactForm,
+    'falak-newsletter': FalakNewsletter,
     'falak-contact-links': FalakContactLinks,
 };
 

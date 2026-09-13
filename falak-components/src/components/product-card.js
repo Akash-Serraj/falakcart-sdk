@@ -225,7 +225,7 @@ export default class FalakProductCard extends FalakElement {
                     ${product.image
                         ? `<img src="${this.escape(product.image)}" alt="" loading="lazy" decoding="async">`
                         : `<span class="f-card__placeholder"></span>`}
-                    ${showBadge ? `<span class="f-card__badge">${this.escape(this.trans('product.sale'))}</span>` : ''}
+                    ${showBadge ? `<span class="f-card__badge" data-discount="${Math.round(((product.compareAt - product.price) / product.compareAt) * 100)}">${this.escape(this.trans('product.sale'))}</span>` : ''}
                     ${offerLabel ? `<span class="f-card__offer">${this.escape(offerLabel)}</span>` : ''}
                 </a>
 

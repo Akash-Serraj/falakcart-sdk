@@ -99,8 +99,22 @@ export default class ProductApi extends BaseApi {
      */
     static applySort(products, sort) {
         const num = (v) => Number(v ?? 0) || 0;
-        const price = (p) => num(p.sale_price ?? p.price);
-        const was = (p) => num(p.regular_price ?? p.old_price ?? p.price);
+        /*
+         * Two naming conventions are read, not one.
+         *
+         * GET /storefront/products returns `price_cents` and
+         * `discount_price_cents`; other shapes in use here return
+         * `sale_price` / `regular_price`. Reading only the latter meant
+         * price() and was() both resolved to 0 for every row the listing
+         * endpoint returns, so discount() was always 0 and `on_offer` filtered
+         * the entire catalogue away — an offers section rendered empty on every
+         * store regardless of whether anything was actually discounted.
+         *
+         * The added keys are fallbacks appended to the existing chains, so any
+         * payload that worked before resolves identically.
+         */
+        const price = (p) => num(p.sale_price ?? p.discount_price_cents ?? p.price ?? p.price_cents);
+        const was = (p) => num(p.regular_price ?? p.old_price ?? p.price ?? p.price_cents);
         const discount = (p) => (was(p) > price(p) ? (was(p) - price(p)) / was(p) : 0);
 
         const list = [...products];
