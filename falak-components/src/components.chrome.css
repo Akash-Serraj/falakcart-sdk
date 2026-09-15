@@ -116,7 +116,18 @@ body.f-modal-open { overflow: hidden; }
     overflow-y: auto;
 }
 
-.f-modal__wrapper--middle { align-items: center; }
+/* `align-items: center` on a scroll container clips what it cannot fit, and it
+   clips at the TOP — where the title and the close button are. A modal taller
+   than the viewport put its own header at a negative offset that no scrolling
+   could reach, because a flex item centred past the start edge sits outside
+   the scrollable area entirely.
+
+   `margin-block: auto` centres identically while there is room to spare and
+   collapses to zero when there is not, so an oversized dialog starts at the
+   top and scrolls normally. Preferred over `align-items: safe center`, which
+   does the same in one line but only on newer engines. */
+.f-modal__wrapper--middle { align-items: flex-start; }
+.f-modal__wrapper--middle > .f-modal__body { margin-block: auto; }
 .f-modal__wrapper--top { align-items: flex-start; }
 .f-modal__wrapper--bottom { align-items: flex-end; }
 

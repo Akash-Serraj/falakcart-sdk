@@ -1135,7 +1135,12 @@ body.f-drawer-open { overflow: hidden; }
     cursor: pointer;
 }
 .f-size-guide__body { display: flex; flex-direction: column; gap: 1rem; }
-.f-size-guide__image { max-inline-size: 100%; block-size: auto; border-radius: var(--f-radius); }
+/* A size guide is very often a phone screenshot — tall, and far bigger than
+   the dialog meant to hold it. Width was capped and height was not, so the
+   modal grew to whatever the merchant uploaded and pushed its own header off
+   the screen. The ratio survives the cap because the width stays free to
+   shrink with it. */
+.f-size-guide__image { max-inline-size: 100%; block-size: auto; max-block-size: 70vh; align-self: center; border-radius: var(--f-radius); }
 .f-size-guide__content table { inline-size: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .f-size-guide__content th, .f-size-guide__content td { padding: 0.5rem 0.6rem; border: 1px solid var(--f-border); text-align: start; }
 .f-size-guide__content th { background: rgba(0, 0, 0, 0.04); font-weight: 700; }
@@ -1457,3 +1462,165 @@ body.f-drawer-open { overflow: hidden; }
     .f-newsletter__row { flex-wrap: wrap; }
     .f-newsletter__submit { flex: 1 1 100%; }
 }
+
+/* ------------------------------------------------------------------ counter */
+
+/*
+ * justify-content matters more than it looks. Dropped into a grid or flex
+ * parent — a stats row, say — an inline-flex element is blockified and
+ * stretched to the full cell, and `text-align: center` on that parent cannot
+ * reach flex children: the figure ends up hard against the start edge while
+ * the label under it stays centred. Centring here costs nothing in normal
+ * flow, where the box shrink-wraps anyway, and a theme that wants the figure
+ * aligned to the edge overrides one property.
+ */
+.f-counter { display: inline-flex; align-items: baseline; justify-content: center; gap: 0.1em; font-variant-numeric: tabular-nums; }
+.f-counter[hidden] { display: none; }
+
+/* ---------------------------------------------------------- image compare */
+
+/*
+ * Built around a native range input. Everything visible reads one custom
+ * property, --f-compare-pos, so the block renders correctly at its 50% default
+ * even if the script never runs.
+ */
+.f-compare {
+    --f-compare-pos: 50%;
+    --f-compare-knob: 2.75rem;
+    position: relative;
+    display: block;
+    overflow: hidden;
+    isolation: isolate;
+    border-radius: var(--f-radius);
+}
+
+.f-compare[hidden] { display: none; }
+
+/* A fixed ratio on both photos: a comparison whose halves are different shapes
+   shows the crop rather than the difference. */
+.f-compare__photo { display: block; inline-size: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: var(--f-surface); }
+
+.f-compare__before { position: absolute; inset: 0; clip-path: inset(0 calc(100% - var(--f-compare-pos)) 0 0); }
+.f-compare__before .f-compare__photo { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; aspect-ratio: auto; }
+
+/* RTL reads the handle from the right, and so does the range input's own
+   travel — clip from the opposite edge or the two move in opposite directions. */
+[dir="rtl"] .f-compare__before { clip-path: inset(0 0 0 calc(100% - var(--f-compare-pos))); }
+
+.f-compare__label {
+    position: absolute;
+    inset-block-start: 1rem;
+    padding: 0.3rem 0.85rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    pointer-events: none;
+}
+
+.f-compare__label--before { inset-inline-start: 1rem; }
+.f-compare__label--after { inset-inline-end: 1rem; }
+
+/*
+ * The input covers the whole photo and draws nothing — its thumb is a
+ * hairline, and the knob below is an ordinary element. A thumb styled as the
+ * knob stops half a knob short of each edge while the divider runs the full
+ * width, and Chrome paints it straight through the overflow clip above.
+ */
+.f-compare__range {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: ew-resize;
+    touch-action: pan-y;
+}
+
+.f-compare__range:focus { outline: none; }
+.f-compare__range::-webkit-slider-runnable-track { background: transparent; border: 0; }
+.f-compare__range::-moz-range-track { background: transparent; border: 0; }
+.f-compare__range::-webkit-slider-thumb { -webkit-appearance: none; inline-size: 1px; block-size: 100%; border: 0; background: transparent; cursor: ew-resize; }
+.f-compare__range::-moz-range-thumb { inline-size: 1px; block-size: 100%; border: 0; border-radius: 0; background: transparent; cursor: ew-resize; }
+
+/* margin-inline-start rather than a translate, so both centre on the handle in
+   either writing direction without a second rule. */
+.f-compare__divider {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: var(--f-compare-pos);
+    inline-size: 2px;
+    margin-inline-start: -1px;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+    pointer-events: none;
+}
+
+.f-compare__knob {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: var(--f-compare-pos);
+    inline-size: var(--f-compare-knob);
+    block-size: var(--f-compare-knob);
+    margin-block-start: calc(var(--f-compare-knob) / -2);
+    margin-inline-start: calc(var(--f-compare-knob) / -2);
+    border-radius: 50%;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6 3 12l6 6M15 6l6 6-6 6'/%3E%3C/svg%3E") center / 1.15rem no-repeat;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+    pointer-events: none;
+}
+
+/* Keyboard focus has to land on something visible, and the input draws
+   nothing — so the ring goes on the knob it moves. */
+.f-compare__range:focus-visible ~ .f-compare__knob { box-shadow: 0 0 0 3px var(--color-primary, #1d9e75), 0 6px 18px rgba(0, 0, 0, 0.28); }
+
+@media (max-width: 639px) {
+    .f-compare { --f-compare-knob: 2.25rem; }
+    .f-compare__photo { aspect-ratio: 4 / 5; }
+    .f-compare__label { inset-block-start: 0.75rem; padding: 0.25rem 0.6rem; }
+    .f-compare__label--before { inset-inline-start: 0.75rem; }
+    .f-compare__label--after { inset-inline-end: 0.75rem; }
+}
+
+/* --------------------------------------------------------------- categories */
+
+.f-categories { display: block; }
+.f-categories[hidden] { display: none; }
+.f-categories__note { margin: 0; padding-block: 2rem; text-align: center; color: var(--f-text-soft); font-size: 0.9rem; }
+
+.f-categories__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 1.25rem;
+}
+
+.f-categories__link { display: grid; gap: 0.5rem; text-align: center; color: inherit; text-decoration: none; }
+
+.f-categories__image {
+    display: block;
+    inline-size: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: var(--f-radius);
+    background: var(--f-surface);
+}
+
+.f-categories__image--empty { border: 1px dashed var(--f-border); }
+.f-categories__name { font-weight: 600; font-size: 0.92rem; }
+.f-categories__count { color: var(--f-text-soft); font-size: 0.78rem; }
+
+/* Round tiles — the "shop by category" circles most storefronts open with. */
+.f-categories--circles .f-categories__image { border-radius: 50%; }
+
+.f-categories--list .f-categories__list { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
+.f-categories--list .f-categories__link { grid-template-columns: 3rem minmax(0, 1fr); align-items: center; text-align: start; gap: 0.75rem; }
+.f-categories--list .f-categories__image { inline-size: 3rem; }

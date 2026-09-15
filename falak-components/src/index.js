@@ -73,6 +73,9 @@ import FalakNewsletter from './components/newsletter.js';
 import FalakContactLinks from './components/contact-links.js';
 import FalakOffers from './components/offers.js';
 import FalakCountdown, { FalakCountDown } from './components/countdown.js';
+import FalakCounter from './components/counter.js';
+import FalakImageCompare from './components/image-compare.js';
+import FalakCategories from './components/categories.js';
 import FalakFilters from './components/filters.js';
 
 const REGISTRY = {
@@ -117,6 +120,9 @@ const REGISTRY = {
     'falak-filters': FalakFilters,
     'falak-countdown': FalakCountdown,
     'falak-count-down': FalakCountDown, // Salla spelling — same component
+    'falak-counter': FalakCounter,
+    'falak-image-compare': FalakImageCompare,
+    'falak-categories': FalakCategories,
     'falak-datetime-picker': FalakDatetimePicker,
     'falak-search': FalakSearch,
     'falak-mini-checkout': FalakMiniCheckout,
@@ -179,5 +185,6 @@ export {
     FalakSocial, FalakPayments, FalakAppsIcons, FalakTrustBadges,
     FalakLoginModal, FalakUserMenu, FalakLocalizationModal, FalakOfferModal, FalakOffers, FalakComments,
     FalakCountdown, FalakCountDown, FalakFilters,
+    FalakCounter, FalakImageCompare, FalakCategories,
     REGISTRY,
 };
