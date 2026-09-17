@@ -109,7 +109,19 @@ export default class FalakProductCard extends FalakElement {
         // price; the original then becomes the struck-through "was".
         const onSale = wasPrice > 0 && wasPrice < price;
 
+        /*
+         * `image` is the server-rendered shape's key — the same page_data
+         * product whose resolved `in_stock` / `has_variations` are read
+         * below. It was missing here, so a theme that renders this component
+         * from page_data (rather than from a fetched API row, which carries
+         * `image_path`) got a placeholder on every card: the listing pages of
+         * any theme using <falak-product-card> were a grid of empty boxes.
+         *
+         * A listing's `images` array is empty by design — the relation is only
+         * loaded on the product page — so it cannot stand in for this.
+         */
         const image = product.image_path
+            || product.image
             || product.images?.[0]?.url
             || product.images?.[0]?.image_path
             || null;
@@ -260,6 +272,11 @@ export default class FalakProductCard extends FalakElement {
                                                   product-name="${this.escape(product.name)}"
                                                   product-image="${this.escape(product.image || '')}"
                                                   product-price="${this.escape(this.money(product.price, product.currency))}"
+                                                  product-price-amount="${this.escape(product.price)}"
+                                                  ${product.compareAt ? `product-compare-price="${this.escape(product.compareAt)}"` : ''}
+                                                  ${product.currency ? `product-currency="${this.escape(product.currency)}"` : ''}
+                                                  product-url="${this.escape(product.url)}"
+                                                  product-in-stock="${product.inStock ? 'true' : 'false'}"
                                                   button-class="f-card__add"
                                                   source="${this.escape(this.attr('source') || 'card')}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>

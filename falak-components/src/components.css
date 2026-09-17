@@ -784,12 +784,39 @@ falak-rating-stars[data-busy] { opacity: 0.5; }
     background: rgba(0, 0, 0, 0.05);
 }
 .f-quick-add__meta { display: flex; flex-direction: column; gap: 0.25rem; min-inline-size: 0; }
+.f-quick-add__eyebrow { font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--f-text-soft); }
 .f-quick-add__name { font-weight: 600; color: var(--f-text); text-decoration: none; }
 .f-quick-add__name:hover { color: var(--color-primary, #1d9e75); }
+.f-quick-add__prices { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; }
 .f-quick-add__price { font-size: 1rem; color: var(--f-text); }
+.f-quick-add__compare { font-size: 0.9rem; color: var(--f-text-faint); }
+.f-quick-add__save {
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(192, 57, 43, 0.1);
+    color: var(--f-danger);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+/* Every optional row is rendered hidden until it has something to say, so
+   the dialog never reserves space for a line the product has no data for. */
+.f-quick-add__compare[hidden],
+.f-quick-add__save[hidden],
+.f-quick-add__stock[hidden] { display: none; }
 .f-quick-add__form { display: flex; flex-direction: column; gap: 1rem; }
+.f-quick-add__stock { margin: 0; font-size: 0.85rem; color: var(--f-text-soft); }
+.f-quick-add__stock--out { color: var(--f-danger); }
 .f-quick-add__actions { display: flex; align-items: stretch; gap: 0.75rem; }
 .f-quick-add__actions .f-add-product__button { flex: 1 1 auto; }
+.f-quick-add__footnote {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--f-text-soft);
+}
+.f-quick-add__details { color: inherit; }
 
 /* ========================================================================
    Wishlist button — the heart

@@ -31,6 +31,11 @@ import FalakElement from '../base.js';
  * |                    | "buy now" the way <salla-mini-checkout-modal> works        |
  * | product-name /     | what the quick-add / mini-checkout dialog shows            |
  * | -image / -price    |                                                          |
+ * | product-subtitle / | the rest of what the quick-add dialog shows, all optional: |
+ * | -url / -currency / | eyebrow line, details link, currency for its own          |
+ * | -compare-price /   | formatting, struck-through "was", the current price as a  |
+ * | -price-amount /    | number (so "save X" can be worked out), stock line,       |
+ * | -in-stock / -note  | reassurance line. Left out ⇒ that row is not rendered.    |
  * | product-status     | sale (default) | out | out-and-notify                   |
  * | product-type       | product (default) | booking | donating                  |
  * | has-pre-order      | label becomes "pre-order" (still adds to the cart)      |
@@ -45,6 +50,8 @@ export default class FalakAddProductButton extends FalakElement {
         'product-id', 'quantity', 'product-status', 'product-type', 'has-pre-order',
         'width', 'size', 'color', 'fill', 'button-class', 'quantity-selector', 'options-selector', 'variation-id', 'source',
         'has-options', 'product-name', 'product-image', 'product-price',
+        'product-subtitle', 'product-url', 'product-currency', 'product-compare-price',
+        'product-price-amount', 'product-in-stock', 'product-note',
     ];
 
     get productId() { return this.attr('product-id'); }
@@ -248,12 +255,52 @@ export default class FalakAddProductButton extends FalakElement {
 
     openQuickAdd() {
         const FalakQuickAdd = customElements.get('falak-quick-add');
+        /*
+         * Only the keys this button was actually given are handed over: the
+         * dialog leaves out the row for anything it does not receive, and an
+         * empty string is a value, not an absence. `product-in-stock` is read
+         * from the attribute rather than productStatus so a card that never
+         * sets it leaves the stock line out altogether instead of asserting
+         * "in stock" from a default.
+         */
         const product = {
             productId: this.productId,
             name: this.attr('product-name', ''),
             image: this.attr('product-image', ''),
             price: this.attr('product-price', ''),
         };
+
+        const optional = {
+            subtitle: 'product-subtitle',
+            url: 'product-url',
+            currency: 'product-currency',
+            note: 'product-note',
+        };
+
+        for (const [key, attribute] of Object.entries(optional)) {
+            if (this.hasAttribute(attribute)) product[key] = this.getAttribute(attribute);
+        }
+
+        /*
+         * The money attributes go over as NUMBERS when they parse as one, so
+         * the dialog formats them itself and can subtract them for "save X".
+         * A theme that only has the formatted string ("149.00 SAR") may still
+         * pass it: it is shown verbatim, minus the badge there is no way to
+         * compute.
+         */
+        for (const [key, attribute] of Object.entries({ comparePrice: 'product-compare-price', priceAmount: 'product-price-amount' })) {
+            if (!this.hasAttribute(attribute)) continue;
+
+            const raw = this.getAttribute(attribute);
+            const number = raw === null || raw.trim() === '' ? NaN : Number(raw);
+
+            product[key] = Number.isFinite(number) ? number : raw;
+        }
+
+        if (this.hasAttribute('product-in-stock')) {
+            product.inStock = this.boolAttr('product-in-stock');
+        }
+
         const options = this.quickAddOptions();
 
         if (FalakQuickAdd?.open) FalakQuickAdd.open(product, options);
