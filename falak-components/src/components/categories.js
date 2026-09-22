@@ -9,8 +9,9 @@ import FalakElement from '../base.js';
  *
  * A home block cannot loop them in Twig — `pages/index.twig` receives no page
  * data and the sandbox exposes no categories function — so a block that wants
- * them has to fetch, which is what this is for. Each tile links to
- * /category/{id}, the storefront's own route.
+ * them has to fetch, which is what this is for. Each tile links to the
+ * listing narrowed to that category — `falak.url.category()` spells it, since
+ * there is no /category/{id} route to link to.
  *
  * Renders its own empty state rather than an empty band: a store with no
  * categories yet should say so, not leave a heading floating over nothing.
@@ -103,7 +104,7 @@ export default class FalakCategories extends FalakElement {
 
         return `
             <li class="f-categories__item">
-                <a class="f-categories__link" href="/category/${this.escape(row.id)}">
+                <a class="f-categories__link" href="${this.escape(this.sdk.url.category(row.id))}">
                     ${image
                         ? `<img class="f-categories__image" src="${this.escape(image)}" alt="" loading="lazy">`
                         : '<span class="f-categories__image f-categories__image--empty" aria-hidden="true"></span>'}

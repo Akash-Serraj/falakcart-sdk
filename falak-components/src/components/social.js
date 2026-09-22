@@ -104,7 +104,13 @@ export default class FalakSocial extends FalakElement {
         return Object.entries(FalakSocial.NETWORKS)
             .filter(([slug]) => !only || only.includes(slug))
             .map(([slug, label]) => {
-                const value = this.attr(`link-${slug}`)
+                // `|| undefined` rather than `??` on the attribute alone: a
+                // theme that renders link-<network>="{{ a blank setting }}"
+                // emits the attribute EMPTY, and an empty string is not
+                // nullish — it would win the coalesce and drop the network
+                // entirely, hiding a profile the store record does have.
+                // Blank means "the theme has nothing here", not "show nothing".
+                const value = (this.attr(`link-${slug}`) || undefined)
                     ?? this.sdk.config.get(`store.social.${slug}`);
 
                 return value ? { slug, label, url: profileUrl(slug, String(value)) } : null;

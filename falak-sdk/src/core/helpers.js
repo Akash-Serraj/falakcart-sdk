@@ -134,6 +134,24 @@ class UrlHelpers {
         return this.get(`product/${id}` + (slug ? `/${slug}` : ''));
     }
 
+    /**
+     * A category's page — the listing narrowed to it.
+     *
+     * There is no /category/{id} route. A category is the listing with that
+     * category selected, which is also precisely what <falak-filters> writes
+     * when the shopper ticks the box, so landing on a category and filtering
+     * to one produce the same URL instead of two addresses for one page.
+     *
+     * Built with URLSearchParams rather than interpolated, so the brackets are
+     * encoded the same way the filter component encodes them.
+     */
+    category(id) {
+        const params = new URLSearchParams();
+        params.append('category_id[]', String(id));
+
+        return `${this.get('products')}?${params}`;
+    }
+
     search(query = '') {
         return this.get('search') + (query ? `?q=${encodeURIComponent(query)}` : '');
     }

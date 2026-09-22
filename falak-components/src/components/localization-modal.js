@@ -3,12 +3,18 @@ import FalakElement from '../base.js';
 /**
  * <falak-localization-modal show-trigger></falak-localization-modal>
  *
- * Language and currency in one sheet, as <salla-localization-modal> does it.
- * With `show-trigger` the component renders its own button; without it, a theme
- * opens it by dispatching `localization::open`.
+ * Language only. With `show-trigger` the component renders its own button;
+ * without it, a theme opens it by dispatching `localization::open`.
  *
- * The currency half only appears when the store actually has more than one —
- * a switcher with a single option is a control that does nothing.
+ * The sheet used to carry a currency switcher beside the language one. It was
+ * removed on 2026-09-22: a storefront prices in the currency its merchant
+ * settled on, and letting a shopper convert that in the header made the price
+ * they read and the price they are charged two different numbers.
+ *
+ * What went is the RENDERED HALF only. `sdk.localization.currency`,
+ * `switchCurrency()` and the currencies endpoint are all still there, so a
+ * theme or a future surface that has a reason to change currency still can —
+ * nothing that existed has been taken away from the API.
  */
 export default class FalakLocalizationModal extends FalakElement {
     static observedAttributes = ['show-trigger', 'visible'];
@@ -21,31 +27,14 @@ export default class FalakLocalizationModal extends FalakElement {
 
     async setup() {
         this.languages = this.sdk.localization.languages();
-        this.currency = this.sdk.localization.currency;
         this.locale = this.sdk.localization.locale;
 
         this._off = this.sdk.event.on('localization::open', () => this.open());
-
-        /*
-         * Rates are fetched once the sheet is first opened, not on page load:
-         * most shoppers never touch the switcher, and this sits in the header
-         * of every page.
-         */
-        this.currencies = [];
     }
 
     disconnectedCallback() {
         this._off?.();
         super.disconnectedCallback();
-    }
-
-    async loadCurrencies() {
-        if (this._loaded) return;
-        this._loaded = true;
-
-        this.currencies = await this.sdk.localization.currencies();
-
-        if (this.currencies.length) this.render();
     }
 
     render() {
@@ -57,7 +46,6 @@ export default class FalakLocalizationModal extends FalakElement {
             ? `<button type="button" class="f-locale__trigger" data-open>
                    <span class="f-locale__globe" aria-hidden="true">${GLOBE}</span>
                    <span class="f-locale__current">${this.escape(current?.native || this.locale.toUpperCase())}</span>
-                   ${this.hasCurrencyChoice ? `<span class="f-locale__sep" aria-hidden="true">·</span><span>${this.escape(this.currency)}</span>` : ''}
                </button>`
             : '';
 
@@ -72,22 +60,9 @@ export default class FalakLocalizationModal extends FalakElement {
                         ${this.languages.map(language => this.option('lang', language.code, language.native || language.name, language.code === this.locale)).join('')}
                     </div>
                 </div>
-
-                ${this.hasCurrencyChoice ? `
-                    <div class="f-locale__group">
-                        <h3 class="f-locale__heading">${this.escape(this.trans('common.currency'))}</h3>
-                        <div class="f-locale__options" role="radiogroup"
-                             aria-label="${this.escape(this.trans('common.currency'))}">
-                            ${this.currencies.map(entry => this.option('currency', entry.code, entry.name || entry.code, entry.code === this.currency)).join('')}
-                        </div>
-                    </div>` : ''}
             </falak-modal>`;
 
         this._modal = this.querySelector('falak-modal');
-    }
-
-    get hasCurrencyChoice() {
-        return this.currencies.length > 1;
     }
 
     option(kind, value, label, isCurrent) {
@@ -107,18 +82,11 @@ export default class FalakLocalizationModal extends FalakElement {
         this.listen(this, 'click', event => {
             if (event.target.closest('[data-open]')) {
                 this.open();
-                this.loadCurrencies();
                 return;
             }
 
             const language = event.target.closest('[data-lang]');
-            if (language) {
-                this.sdk.localization.switchLanguage(language.dataset.lang);
-                return;
-            }
-
-            const currency = event.target.closest('[data-currency]');
-            if (currency) this.sdk.localization.switchCurrency(currency.dataset.currency);
+            if (language) this.sdk.localization.switchLanguage(language.dataset.lang);
         });
 
         // Keep the wrapper's state honest when the inner modal dismisses
@@ -132,7 +100,6 @@ export default class FalakLocalizationModal extends FalakElement {
 
         if (this.visible) {
             this._modal?.open?.();
-            this.loadCurrencies();
             return;
         }
 
