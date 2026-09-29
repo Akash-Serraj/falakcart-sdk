@@ -770,6 +770,74 @@ falak-rating-stars[data-busy] { opacity: 0.5; }
 .f-options__error { margin: 0; font-size: 0.82rem; color: var(--f-danger); }
 .f-options__error[hidden] { display: none; }
 
+/*
+ * A `color` or `image` option's pill: the swatch IS the label, so the pill
+ * shrinks to it and the selected state becomes a ring rather than the solid
+ * primary fill the text pills use — that fill would paint over the very
+ * colour the shopper is choosing.
+ */
+.f-options__pill--swatch {
+    min-inline-size: 0;
+    min-block-size: 0;
+    padding: 0.2rem;
+    border-radius: 50%;
+}
+.f-options__pill--swatch.is-selected {
+    background: var(--f-surface);
+    color: var(--f-text);
+    box-shadow: 0 0 0 2px var(--color-primary, #1d9e75) inset;
+}
+.f-options__pill--image { border-radius: var(--f-radius); }
+
+/*
+ * The swatch carries its OWN shape rather than inheriting the pill's. Themes
+ * reshape `.f-options__pill` freely — every one of them squares it off on the
+ * product page — and an inherited radius would turn each colour circle into a
+ * rounded rectangle wherever they did.
+ */
+.f-options__swatch {
+    display: block;
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    border-radius: 50%;
+    /* A white or near-white swatch would otherwise vanish into the pill. */
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 12%) inset;
+}
+.f-options__pill--image .f-options__swatch {
+    inline-size: 2.75rem;
+    block-size: 2.75rem;
+    border-radius: var(--f-radius);
+}
+.f-options__swatch--image { object-fit: cover; }
+
+/* The strike-through marking an unbuyable value has to sit ABOVE the swatch. */
+.f-options__pill--swatch.f-options__pill--out_of_stock::after,
+.f-options__pill--swatch.f-options__pill--impossible::after {
+    inset-inline: 0;
+    z-index: 1;
+    border-block-start-color: var(--f-danger);
+    border-block-start-width: 2px;
+    opacity: 0.9;
+}
+.f-options__pill--swatch:disabled { opacity: 0.45; }
+
+/* A group with more values than pills can carry. */
+.f-options__select {
+    inline-size: 100%;
+    max-inline-size: 22rem;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    background: var(--f-surface);
+    color: var(--f-text);
+    font: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+.f-options__select:focus-visible { outline: 2px solid var(--color-primary, #1d9e75); outline-offset: 2px; }
+.f-options__select option:disabled { color: var(--f-text-faint); }
+.f-options__group--invalid .f-options__select { border-color: var(--f-danger); }
+
 /* ========================================================================
    Quick add — variant chooser dialog for cards
    ======================================================================== */

@@ -104,6 +104,28 @@ export default class FalakCheckout extends FalakElement {
         return known ? known[this.isRtl ? 1 : 0] : code;
     }
 
+    /**
+     * What a shopper chose on one line — "أحمر · كبير".
+     *
+     * `line.options` is the server's named version, already in the merchant's
+     * order and this locale, so the summary agrees with the cart and the
+     * product page. The raw attribute map is the fallback for a line read
+     * before the API carried it.
+     */
+    lineOptions(line) {
+        if (Array.isArray(line?.options) && line.options.length) {
+            return line.options.map(o => o.value_label ?? o.value).filter(Boolean).join(' · ');
+        }
+
+        const attributes = line?.variation?.attributes;
+
+        if (!attributes || typeof attributes !== 'object') return '';
+
+        return Object.values(attributes)
+            .filter(v => v !== null && v !== undefined && v !== '' && typeof v !== 'object')
+            .join(' · ');
+    }
+
     /* ------------------------------------------------------------ render */
 
     render() {
@@ -373,7 +395,7 @@ export default class FalakCheckout extends FalakElement {
                     ${lines.map(l => `
                         <li class="f-checkout__line">
                             <span class="f-checkout__line-media">${l.image ? `<img src="${this.escape(l.image)}" alt="">` : ''}<b class="f-checkout__line-qty">${l.quantity}</b></span>
-                            <span class="f-checkout__line-text"><span class="f-checkout__line-name">${this.escape(l.name)}</span>${l.variation?.attributes ? `<small>${this.escape(Object.values(l.variation.attributes).join(' · '))}</small>` : ''}</span>
+                            <span class="f-checkout__line-text"><span class="f-checkout__line-name">${this.escape(l.name)}</span>${this.lineOptions(l) ? `<small>${this.escape(this.lineOptions(l))}</small>` : ''}</span>
                             <span class="f-checkout__line-total">${this.escape(this.money(l.total, currency))}</span>
                         </li>`).join('')}
                 </ul>

@@ -46,7 +46,7 @@ export default class FalakAddProductToast extends FalakElement {
         const lines = this.sdk.cart.lines || [];
         const count = lines.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
         const total = lines.reduce((sum, item) => sum + Number(item.total || 0), 0);
-        const variant = this.variationLabel(line.variation);
+        const variant = this.variationLabel(line.variation, line.options);
 
         this.innerHTML = `
             <div class="f-add-toast__card" role="status">
@@ -144,12 +144,18 @@ export default class FalakAddProductToast extends FalakElement {
     /**
      * The chosen options for a cart line — "Red / Large".
      *
-     * `line.variation` is the API's whole variation ROW (id, tenant_id,
-     * product_id, prices, timestamps) with the selection nested under
-     * `attributes`. Reading its values directly put the record itself in the
-     * toast, timestamps and all.
+     * `line.options` is the server's already-named version of the choice, in
+     * the merchant's order and this locale; it is preferred so the toast says
+     * what the product page said. `line.variation` is the fallback — the
+     * API's whole variation ROW (id, tenant_id, product_id, prices,
+     * timestamps) with the selection nested under `attributes`. Reading its
+     * values directly put the record itself in the toast, timestamps and all.
      */
-    variationLabel(variation) {
+    variationLabel(variation, options) {
+        if (Array.isArray(options) && options.length) {
+            return options.map(option => option.value_label ?? option.value).filter(Boolean).join(' / ');
+        }
+
         if (!variation || typeof variation !== 'object') return '';
 
         let attributes = variation.attributes;

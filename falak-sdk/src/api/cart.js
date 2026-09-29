@@ -285,6 +285,15 @@ export default class CartApi extends BaseApi {
                 productId: product.id,
                 variationId: line.variation_id ?? null,
                 variation: line.selected_variation ?? null,
+                /*
+                 * The chosen options already named by the server —
+                 * [{ key, label, value, value_label }] in the merchant's order,
+                 * resolved to this locale. `variation.attributes` is still the
+                 * raw map beside it; prefer this when showing a shopper what
+                 * they picked, or the cart says "Color: Red" on a page whose
+                 * product said "اللون: أحمر".
+                 */
+                options: Array.isArray(line.selected_options) ? line.selected_options : [],
                 name: name || '',
                 image: product.images?.[0]?.url ?? product.image_path ?? null,
                 url: this.client ? `/product/${product.id}` : null,
