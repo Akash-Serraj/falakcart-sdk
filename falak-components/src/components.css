@@ -270,6 +270,51 @@ falak-rating-stars[data-busy] { opacity: 0.5; }
 
 .f-card__placeholder { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.05); }
 
+/*
+ * Video commerce. Every rule here is keyed on .f-card__video, an element that
+ * only exists when a card was explicitly asked for a clip (its own `video`
+ * attribute, or a [data-video-commerce] ancestor) AND the product has one. A
+ * card that is not showing video matches none of this, so adding it changes
+ * nothing about how any existing card in any theme renders.
+ */
+/* The still sits UNDER the clip and fills the same box, so the swap from one to
+   the other is invisible. Absolute, because the clip must be able to lie over
+   it rather than push it out of the way. */
+.f-card__still {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.f-card__video {
+    position: relative;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    display: block;
+    /* Transparent on purpose: a background here would paint over the still
+       while the clip is still arriving, which is the whole point of having
+       one. */
+    background: transparent;
+}
+
+.f-card__video-badge {
+    position: absolute;
+    inset-block-end: 0.5rem;
+    inset-inline-start: 0.5rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 55%);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.6;
+    pointer-events: none;
+}
+
 .f-card__badge {
     position: absolute;
     inset-block-start: 0.5rem;

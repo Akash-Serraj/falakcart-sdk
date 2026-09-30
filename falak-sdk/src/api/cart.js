@@ -295,7 +295,41 @@ export default class CartApi extends BaseApi {
                  */
                 options: Array.isArray(line.selected_options) ? line.selected_options : [],
                 name: name || '',
-                image: product.images?.[0]?.url ?? product.image_path ?? null,
+                /*
+                 * A video-commerce line shows the CLIP's picture, never the
+                 * gallery's.
+                 *
+                 * These products are sold from a video wall: the shopper
+                 * watched a clip, saw its poster on the card, and added THAT.
+                 * The gallery beside it is a separate set of photographs that
+                 * need not show the same thing — a product with four handbag
+                 * photographs against a clip of an abaya had the cart telling a
+                 * shopper they had ordered something they never saw.
+                 *
+                 * Null when the merchant saved no poster, which a theme can
+                 * draw as the clip's own first frame (`video` below) and,
+                 * failing that, as its empty tile. Both are honest; the
+                 * gallery's first photograph is not.
+                 *
+                 * Every other product resolves exactly as it always did, with
+                 * the poster added only as a last fallback for the case where
+                 * there are no photographs at all.
+                 */
+                image: product.is_video_commerce
+                    ? (product.video_thumbnail_url ?? product.video_thumbnail_path ?? null)
+                    : (product.images?.[0]?.url
+                        ?? product.image_path
+                        ?? product.video_thumbnail_url
+                        ?? product.video_thumbnail_path
+                        ?? null),
+                /*
+                 * The clip itself, for the one case the fallback cannot cover:
+                 * a merchant who uploaded a video and never a poster for it.
+                 * There is then no still anywhere to show, so a theme can point
+                 * a muted <video> at this and seek its first frame. Null for
+                 * every product without a clip, which is nearly all of them.
+                 */
+                video: product.video_url ?? product.video_path ?? null,
                 url: this.client ? `/product/${product.id}` : null,
                 quantity: Number(line.quantity || 0),
                 price: Number(line.unit_price || 0),

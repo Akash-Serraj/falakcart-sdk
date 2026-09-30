@@ -102,8 +102,24 @@ export default class FalakProductCard extends FalakElement {
 
         const name = locale === 'ar' && product.name_ar ? product.name_ar : product.name;
 
-        const price = Number(product.price_cents ?? 0);
-        const wasPrice = Number(product.discount_price_cents ?? 0);
+        /*
+         * The server-rendered shape prices differently, and reading it as the
+         * raw one put 0.00 on every card: mapProduct has ALREADY resolved the
+         * sale, so it sends `price_amount` (the effective price) and
+         * `compare_at_amount` (the original) and carries no price_cents at
+         * all. Unfolding it back into list/discount lets the one rule below
+         * decide for both shapes. Nothing about the fetched path changes —
+         * this only runs when price_cents is absent.
+         */
+        const mapped = product.price_cents === undefined && product.price_amount !== undefined;
+
+        const price = mapped
+            ? Number(product.compare_at_amount ?? product.price_amount ?? 0)
+            : Number(product.price_cents ?? 0);
+
+        const wasPrice = mapped
+            ? (product.compare_at_amount ? Number(product.price_amount ?? 0) : 0)
+            : Number(product.discount_price_cents ?? 0);
 
         // A discount column that is set and lower than list price is the sale
         // price; the original then becomes the struck-through "was".
@@ -156,6 +172,16 @@ export default class FalakProductCard extends FalakElement {
                 : (Array.isArray(product.variations) && product.variations.length > 0),
             rating: product.average_rating ?? null,
             reviews: product.reviews_count ?? 0,
+            /*
+             * The clip and its poster. Read for every card because reading is
+             * free, but only ever RENDERED when the card was asked for video —
+             * see wantsVideo(). A product that has one therefore changes no
+             * card that was not built to show it.
+             */
+            // `*_url` are the model's accessors and are already absolute; the
+            // bare `*_path` columns are the fallback for any payload without them.
+            video: product.video_url || product.video_path || null,
+            poster: product.video_thumbnail_url || product.video_thumbnail_path || null,
         };
     }
 
@@ -190,6 +216,139 @@ export default class FalakProductCard extends FalakElement {
      * theme-level delegates, mirroring the buy button's contract.
      */
     get showWishlist() { return this.boolAttr('show-wishlist'); }
+
+    /* ------------------------------------------------------------- video */
+
+    /**
+     * Video commerce, and ONLY where it was asked for.
+     *
+     * A product can carry a clip without every card that ever shows it turning
+     * into a video wall — a listing grid of autoplaying videos is a different
+     * component, not a side effect of a merchant uploading one. So the clip is
+     * opt-in twice over: the card must be told to want video (its own `video`
+     * attribute, or sitting inside a [data-video-commerce] section), AND the
+     * product must actually have one. A card that is not asked renders exactly
+     * the markup it rendered before this existed — same <img>, same classes.
+     *
+     * | attribute   | role                                                  |
+     * | video       | a clip URL, overriding the product's own             |
+     * | video-badge | text laid over the clip                               |
+     * | playback    | hover (default); any other value plays on its own,    |
+     * |             | which the browser already limits to while in view     |
+     */
+    get wantsVideo() {
+        return this.hasAttribute('video') || !!this.closest('[data-video-commerce]');
+    }
+
+    get videoBadge() { return this.attr('video-badge', ''); }
+    get playback() { return this.attr('playback', 'hover'); }
+
+    /* Hover is the only mode that needs listeners; every other value (the
+       themes say "inview") is the browser's own autoplay, which it suspends
+       off-screen for a muted video. Written as "not hover" so a theme naming
+       the mode differently still gets the sane behaviour. */
+    get playsOnHover() { return this.playback === 'hover'; }
+
+    /** The clip for this card, or null when there is nothing to play. */
+    videoFor(product) {
+        if (!this.wantsVideo) return null;
+
+        return this.attr('video', null) || product.video || null;
+    }
+
+    /**
+     * The media element. Unchanged for every card that is not showing a clip —
+     * this is the old expression, lifted out so the video branch has somewhere
+     * to live rather than growing the template literal.
+     */
+    mediaHtml(product) {
+        const video = this.videoFor(product);
+
+        if (video) {
+            // Poster first so the card shows the product before a byte of
+            // video is fetched, rather than whatever frame 0.1s happens to be.
+            const poster = product.poster || product.image;
+
+            /*
+             * And preload ONLY when the preload IS the thumbnail.
+             *
+             * `preload="metadata"` was on every one of these, which undid the
+             * line above: the poster was drawn and the clip was fetched anyway.
+             * Browsers run media through a small per-host pool, so a wall of
+             * four cards opened four of those slots and held them — measured on
+             * a video-commerce home page as four clips at readyState 4 before
+             * the shopper had touched anything, about 16MB nobody asked for.
+             * Anything asking for media after that queued behind them, the
+             * viewer opened on that wall's own clip included.
+             *
+             * With no poster the clip's first frame is the only picture the
+             * card has, so it still has to be fetched. A card that autoplays
+             * needs the bytes either way. Only the hover card with a poster
+             * already has its picture, and that one now waits for the hover.
+             */
+            const preload = poster && this.playsOnHover ? 'none' : 'metadata';
+
+            /*
+             * The still is a LAZY <img> under the clip, not the <video>'s own
+             * poster attribute.
+             *
+             * `poster` has no lazy form — the browser fetches it as soon as the
+             * element is parsed. A video wall can be a scrolling row of dozens
+             * of these, of which four are on screen, so eagerly meant dozens of
+             * stills pulled for tiles nobody had scrolled to. `loading="lazy"`
+             * is the native answer and needs no observer.
+             *
+             * The clip is transparent until it has frames (see the stylesheet),
+             * so the still shows through and the video takes over the same box
+             * when it is ready — which is also what a poster attribute would
+             * have done.
+             */
+            return `
+                ${poster ? `<img class="f-card__still" src="${this.escape(poster)}" alt=""
+                       loading="lazy" decoding="async" aria-hidden="true">` : ''}
+                <video class="f-card__video" muted loop playsinline preload="${preload}"
+                       ${this.playsOnHover ? '' : 'autoplay'}
+                       src="${this.escape(video)}"></video>
+                ${this.videoBadge ? `<span class="f-card__video-badge">${this.escape(this.videoBadge)}</span>` : ''}`;
+        }
+
+        return product.image
+            ? `<img src="${this.escape(product.image)}" alt="" loading="lazy" decoding="async">`
+            : `<span class="f-card__placeholder"></span>`;
+    }
+
+    /**
+     * Hover playback.
+     *
+     * Bound ONCE, to the card, and the <video> is looked up when the pointer
+     * arrives rather than captured here: render() replaces innerHTML, so an
+     * element captured at wiring time is detached by the next repaint, and
+     * re-wiring per render would stack a listener each time (listen() only
+     * tears down on disconnect).
+     *
+     * Any non-hover mode needs none of this — the element carries `autoplay`
+     * and the browser pauses an off-screen muted video by itself.
+     */
+    wireVideo() {
+        this.listen(this, 'pointerenter', () => {
+            if (!this.playsOnHover) return;
+
+            const video = this.querySelector('.f-card__video');
+            if (!video) return;
+
+            const played = video.play();
+            // Autoplay policy can still refuse; nothing to do but keep the poster.
+            if (played && played.catch) played.catch(() => {});
+        });
+
+        this.listen(this, 'pointerleave', () => {
+            const video = this.querySelector('.f-card__video');
+            if (!video || !this.playsOnHover) return;
+
+            video.pause();
+            video.currentTime = 0;
+        });
+    }
 
     render() {
         const raw = this.product;
@@ -234,9 +393,7 @@ export default class FalakProductCard extends FalakElement {
         this.innerHTML = `
             <article class="f-card__inner">
                 <a class="f-card__media" href="${this.escape(product.url)}" tabindex="-1" aria-hidden="true">
-                    ${product.image
-                        ? `<img src="${this.escape(product.image)}" alt="" loading="lazy" decoding="async">`
-                        : `<span class="f-card__placeholder"></span>`}
+                    ${this.mediaHtml(product)}
                     ${showBadge ? `<span class="f-card__badge" data-discount="${Math.round(((product.compareAt - product.price) / product.compareAt) * 100)}">${this.escape(this.trans('product.sale'))}</span>` : ''}
                     ${offerLabel ? `<span class="f-card__offer">${this.escape(offerLabel)}</span>` : ''}
                 </a>
@@ -305,6 +462,8 @@ export default class FalakProductCard extends FalakElement {
     afterRender() {
         if (this._wired) return;
         this._wired = true;
+
+        this.wireVideo();
 
         this.listen(this, 'click', event => {
             // The add action is <falak-add-product-button>, which performs the
