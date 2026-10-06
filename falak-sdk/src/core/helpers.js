@@ -17,12 +17,33 @@ export default class Helpers {
      * (`price_cents` is a decimal:2 cast, despite the column name), so this
      * formats a plain number and never divides by 100.
      */
-    money(amount, currency = null) {
-        const value = Number(amount);
+    money(amount, currency = null, options = {}) {
+        let value = Number(amount);
 
         if (!Number.isFinite(value)) return '';
 
-        const code = currency || this.config.get('currency.code', 'SAR');
+        const base = String(this.config.get('currency.code', 'SAR')).toUpperCase();
+        let code = String(currency || base).toUpperCase();
+        // `{ convert: false }` prints a base amount AS base — for a figure
+        // frozen on an order (what was charged), which must not be re-converted.
+        const convert = options?.convert !== false;
+
+        /*
+         * `currency` is the currency the amount is IN — null or the base code
+         * means a catalog amount, and those are shown in the shopper's display
+         * currency at the rate the server resolved for this page. Anything
+         * else (a gateway's USD charge) is printed as given. This is the same
+         * branch CurrencyFormatter::format() takes, with the same rate, so the
+         * two print one number. No rate is ever derived here.
+         */
+        const display = String(this.config.get('currency.display', base)).toUpperCase();
+
+        if (convert && code === base && display !== base) {
+            value = this.roundMoney(value * (Number(this.config.get('currency.rate', 1)) || 1));
+            code = display;
+        }
+
+        const decimals = this.decimals();
 
         /*
          * Mirrors the platform's CurrencyFormatter exactly — `1,234.50 SAR`,
@@ -31,8 +52,8 @@ export default class Helpers {
          * so Intl's currency style (which places symbols per locale) is out.
          */
         let formatted = value.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
         });
 
         if (this.config.get('store.settings.arabic_numbers_enabled', false)) {
@@ -47,6 +68,46 @@ export default class Helpers {
         const label = (this.config.get('currency.labels', {}) || {})[code] || code;
 
         return `${formatted} ${label}`;
+    }
+
+    /**
+     * A base-currency amount in another currency, at the server's rates.
+     *
+     * For the checkout's "you'll be charged 12.50 USD" line, where the gateway
+     * settles in something other than what the shopper is reading. The rates
+     * are the base → code table the page was rendered with (buffer included),
+     * so this agrees with what StorefrontCurrency::gatewayCharge() will send.
+     */
+    convert(amount, to, from = null) {
+        const value = Number(amount);
+
+        if (!Number.isFinite(value)) return 0;
+
+        const base = String(this.config.get('currency.code', 'SAR')).toUpperCase();
+        const target = String(to || base).toUpperCase();
+        const source = String(from || base).toUpperCase();
+
+        if (source === target) return this.roundMoney(value);
+
+        const rates = this.config.get('currency.rates', {}) || {};
+        const toRate = source === base ? Number(rates[target]) : Number(rates[target]) / Number(rates[source]);
+
+        if (!Number.isFinite(toRate) || toRate <= 0) return this.roundMoney(value);
+
+        return this.roundMoney(value * toRate);
+    }
+
+    /** Half-up to the platform's decimals — the arithmetic StorefrontCurrency::round() runs. */
+    roundMoney(value) {
+        const factor = 10 ** this.decimals();
+
+        return Math.floor(value * factor + 0.5 + 1e-9) / factor;
+    }
+
+    decimals() {
+        const decimals = Number(this.config.get('currency.decimals', 2));
+
+        return Number.isInteger(decimals) && decimals >= 0 ? decimals : 2;
     }
 
     number(value) {

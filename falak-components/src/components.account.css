@@ -204,7 +204,9 @@
    Localization sheet
    ======================================================================== */
 
-.f-locale { display: inline-block; }
+.f-locale { position: relative; display: inline-block; }
+.f-locale[hidden] { display: none; }
+.f-locale__chevron { display: inline-flex; opacity: 0.6; transition: transform 0.18s ease; }
 
 .f-locale__trigger {
     display: inline-flex;
@@ -225,45 +227,317 @@
 .f-locale__globe { display: inline-flex; opacity: 0.75; }
 .f-locale__sep { opacity: 0.45; }
 
-.f-locale__group + .f-locale__group { margin-block-start: 1.25rem; }
+/* ---- the preferences sheet -------------------------------------------
+   Two groups (language, currency) of option cards. Each card leads with a
+   small code chip (AR / EN, ر.س / $), then the name, and the chosen one
+   carries a check at its end. Cards sit two abreast: the sheet holds ten
+   currencies without becoming a scroll, and still reads as a list on a
+   phone because the names are short. */
+
+#falak-localization .f-modal__body { max-inline-size: 30rem; }
+
+.f-locale__group + .f-locale__group {
+    margin-block-start: 1.4rem;
+    padding-block-start: 1.25rem;
+    border-block-start: 1px solid var(--f-border);
+}
 
 .f-locale__heading {
-    margin: 0 0 0.6rem;
-    font-size: 0.75rem;
+    margin: 0 0 0.7rem;
+    font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--f-text-faint);
 }
 
-.f-locale__options { display: grid; gap: 0.4rem; }
+.f-locale__options,
+.f-currency__options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+}
 
-.f-locale__option {
+.f-locale__option,
+.f-currency__option {
+    position: relative;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.65rem 0.85rem;
+    justify-content: flex-start;
+    gap: 0.65rem;
+    min-inline-size: 0;
+    padding: 0.6rem 0.75rem;
     border: 1px solid var(--f-border);
     border-radius: var(--f-radius);
     background: var(--f-surface);
     color: var(--f-text);
     font: inherit;
     font-size: 0.88rem;
+    line-height: 1.25;
     text-align: start;
     cursor: pointer;
-    transition: border-color 0.15s ease, background-color 0.15s ease;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
-.f-locale__option:hover { border-color: var(--color-primary, #1d9e75); }
+.f-locale__option:hover,
+.f-currency__option:hover {
+    border-color: color-mix(in srgb, var(--color-primary, #1d9e75) 55%, var(--f-border));
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
 
-.f-locale__option.is-current {
+.f-locale__option:active,
+.f-currency__option:active { transform: scale(0.985); }
+
+.f-locale__option:focus-visible,
+.f-currency__option:focus-visible { outline: 2px solid var(--color-primary, #1d9e75); outline-offset: 2px; }
+
+.f-locale__option-label,
+.f-currency__option-label { display: flex; flex-direction: column; gap: 0.1rem; min-inline-size: 0; line-height: 1.25; }
+.f-locale__option-name,
+.f-currency__option-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f-locale__option-sub { font-size: 0.74rem; font-weight: 400; color: var(--f-text-faint); }
+
+/* ---- currency as a select, and the Ok that applies both ------------- */
+
+.f-locale__select-wrap { position: relative; display: block; }
+
+.f-locale__select {
+    inline-size: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 0.8rem 2.6rem 0.8rem 1rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    background: var(--f-surface);
+    color: var(--f-text);
+    font: inherit;
+    font-size: 0.92rem;
+    cursor: pointer;
+}
+
+[dir="rtl"] .f-locale__select { padding: 0.8rem 1rem 0.8rem 2.6rem; }
+
+.f-locale__select:hover { border-color: color-mix(in srgb, var(--color-primary, #1d9e75) 55%, var(--f-border)); }
+.f-locale__select:focus-visible {
+    outline: none;
     border-color: var(--color-primary, #1d9e75);
-    background: color-mix(in srgb, var(--color-primary, #1d9e75) 10%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary, #1d9e75) 18%, transparent);
+}
+
+.f-locale__select-chevron {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    pointer-events: none;
+    color: var(--f-text-soft);
+}
+
+.f-locale__actions { margin-block-start: 1.5rem; }
+
+/* The code chip leads the card; it is what the eye scans down. */
+.f-locale__code,
+.f-currency__code {
+    order: -1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    min-inline-size: 2.5rem;
+    block-size: 1.7rem;
+    padding-inline: 0.45rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--f-text) 6%, transparent);
+    color: var(--f-text-soft);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.f-locale__option.is-current,
+.f-currency__option.is-current {
+    border-color: var(--color-primary, #1d9e75);
+    background: color-mix(in srgb, var(--color-primary, #1d9e75) 8%, var(--f-surface));
     font-weight: 600;
 }
 
-.f-locale__code { font-size: 0.72rem; color: var(--f-text-faint); font-variant-numeric: tabular-nums; }
+.f-locale__option.is-current .f-locale__code,
+.f-currency__option.is-current .f-currency__code {
+    background: var(--color-primary, #1d9e75);
+    color: var(--color-on-primary, #fff);
+}
+
+/* Check mark at the end of the chosen card. */
+.f-locale__option.is-current::after,
+.f-currency__option.is-current::after {
+    content: "";
+    flex: none;
+    margin-inline-start: auto;
+    inline-size: 1rem;
+    block-size: 1rem;
+    background: var(--color-primary, #1d9e75);
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12l5 5L20 7'/></svg>") center / contain no-repeat;
+    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12l5 5L20 7'/></svg>") center / contain no-repeat;
+}
+
+@media (max-width: 380px) {
+    .f-locale__options,
+    .f-currency__options { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ------------------------------------------------------------------------
+   Currency switcher — hidden entirely on a one-currency store
+   ------------------------------------------------------------------------ */
+
+.f-currency { position: relative; display: inline-block; }
+.f-currency[hidden] { display: none; }
+
+/* The trigger pill: code + chevron (+ a coin a theme may hide). */
+.f-currency__field {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.6rem;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    font: inherit;
+    font-size: 0.85rem;
+    color: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.f-currency__field:hover { background: rgba(0, 0, 0, 0.05); }
+.f-currency__field:focus-visible { outline: 2px solid var(--color-primary, #1d9e75); outline-offset: 2px; }
+.f-currency__icon { display: inline-flex; opacity: 0.75; }
+.f-currency__current { font-weight: 600; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.f-currency__chevron { display: inline-flex; opacity: 0.6; transition: transform 0.18s ease; }
+.f-currency.is-open .f-currency__chevron,
+.f-locale.is-open .f-locale__chevron { transform: rotate(180deg); }
+
+/* The panel hangs from the trigger's inline-end edge and opens towards the
+   page; where that would leave the viewport the component sets
+   --f-switch-shift to slide it back in (a `translate`, so the open
+   animation's `transform` is untouched). */
+.f-switch__panel {
+    position: absolute;
+    inset-block-start: calc(100% + 0.5rem);
+    inset-inline-end: 0;
+    translate: var(--f-switch-shift, 0px) 0;
+    z-index: 900;
+    min-inline-size: 16.5rem;
+    max-inline-size: min(20rem, calc(100vw - 2rem));
+    padding: 0.5rem;
+    border: 1px solid var(--f-border);
+    border-radius: 1rem;
+    background: var(--f-surface, #fff);
+    color: var(--f-text);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06);
+    text-align: start;
+    animation: f-switch-in 0.16s ease;
+}
+
+.f-switch__panel[hidden] { display: none; }
+
+@keyframes f-switch-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: none; }
+}
+
+.f-switch__title {
+    margin: 0;
+    padding: 0.55rem 0.75rem 0.4rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--f-text-faint);
+}
+
+.f-switch__list {
+    display: grid;
+    gap: 0.15rem;
+    max-block-size: min(60vh, 24rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* One row: chip, name + symbol, check. */
+.f-switch__item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    inline-size: 100%;
+    padding: 0.5rem 0.6rem;
+    border: 0;
+    border-radius: 0.75rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+    transition: background-color 0.12s ease;
+}
+
+.f-switch__item:hover,
+.f-switch__item:focus-visible { background: color-mix(in srgb, var(--f-text) 5%, transparent); outline: none; }
+.f-switch__item.is-current { background: color-mix(in srgb, var(--color-primary, #1d9e75) 10%, transparent); }
+.f-switch__item.is-current:hover,
+.f-switch__item.is-current:focus-visible { background: color-mix(in srgb, var(--color-primary, #1d9e75) 15%, transparent); }
+
+.f-switch__code {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    min-inline-size: 2.75rem;
+    block-size: 2.25rem;
+    padding-inline: 0.4rem;
+    border-radius: 0.65rem;
+    background: color-mix(in srgb, var(--f-text) 6%, transparent);
+    color: var(--f-text-soft);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+}
+
+.f-switch__item.is-current .f-switch__code {
+    background: var(--color-primary, #1d9e75);
+    color: var(--color-on-primary, #fff);
+}
+
+.f-switch__text { display: flex; flex-direction: column; min-inline-size: 0; gap: 0.1rem; }
+.f-switch__name { font-weight: 600; font-size: 0.9rem; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f-switch__sub { font-size: 0.74rem; line-height: 1.2; color: var(--f-text-faint); }
+.f-switch__item.is-current .f-switch__name { font-weight: 700; }
+
+.f-switch__item.is-current::after {
+    content: "";
+    flex: none;
+    margin-inline-start: auto;
+    inline-size: 1rem;
+    block-size: 1rem;
+    background: var(--color-primary, #1d9e75);
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12l5 5L20 7'/></svg>") center / contain no-repeat;
+    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12l5 5L20 7'/></svg>") center / contain no-repeat;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .f-switch__panel { animation: none; }
+    .f-currency__chevron,
+    .f-locale__chevron { transition: none; }
+}
+
+/* Inside the preferences sheet the host must fill the row, or the option
+   grid shrink-wraps to one narrow column. The option cards themselves share
+   the language cards' rules above. */
+.f-locale__group > falak-currency,
+.f-currency[inline] { display: block; }
 
 /* ========================================================================
    Comments / reviews
@@ -788,6 +1062,8 @@
 .f-order__row { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.95rem; }
 .f-order__row--discount { color: var(--f-success, #15803d); }
 .f-order__row--total { margin-block-start: 0.35rem; padding-block-start: 0.6rem; border-block-start: 1px solid rgba(0, 0, 0, 0.1); font-weight: 700; font-size: 1.05rem; }
+/* The gateway's own currency, when it differs from what the shopper reads. */
+.f-order__charged { margin: 0.4rem 0 0; font-size: 0.8rem; color: var(--f-text-faint); font-variant-numeric: tabular-nums; }
 .f-order__details { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem; }
 .f-order__detail { display: flex; flex-direction: column; gap: 0.35rem; padding: 1rem; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 0.75rem; }
 .f-order__detail-text { margin: 0; font-size: 0.9rem; line-height: 1.5; }

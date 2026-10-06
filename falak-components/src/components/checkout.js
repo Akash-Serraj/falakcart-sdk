@@ -334,13 +334,33 @@ export default class FalakCheckout extends FalakElement {
                             <label class="f-checkout__method${String(m.id) === String(this.state.payment) ? ' is-selected' : ''}">
                                 <input type="radio" name="payment_method" value="${this.escape(m.id)}" ${String(m.id) === String(this.state.payment) ? 'checked' : ''} data-checkout-payment>
                                 ${m.logo ? `<img class="f-checkout__method-logo" src="${this.escape(m.logo)}" alt="">` : `<span class="f-checkout__method-logo f-checkout__method-logo--empty" aria-hidden="true">${FalakCheckout.ICONS.card}</span>`}
-                                <span class="f-checkout__method-text"><b>${this.escape(m.name)}</b>${m.description ? `<small>${this.escape(m.description)}</small>` : ''}</span>
+                                <span class="f-checkout__method-text"><b>${this.escape(m.name)}</b>${m.description ? `<small>${this.escape(m.description)}</small>` : ''}${this.chargeNote(m)}</span>
                             </label>`).join('')}
                     </div>
                     <button type="button" class="f-btn f-btn--solid f-btn--primary f-btn--wide" data-checkout-review ${this.state.payment ? '' : 'disabled'}>${this.escape(this.trans('checkout.review_order'))}</button>`
                     : `<p class="f-checkout__error" role="alert">${this.escape(this.trans('checkout.no_payment_methods'))}</p>`}
                 </div>` : ''}
             </section>`;
+    }
+
+    /**
+     * "You'll be charged 12.50 USD" under a method that settles in something
+     * other than what the shopper is reading — Tap falling back to USD, a BNPL
+     * gateway that only takes SAR. The server says which currency each method
+     * charges (`charge_currency`), and the amount is the order total converted
+     * at the page's rates, the same ones the gateway charge will use. Silent
+     * when the method charges the display currency.
+     */
+    chargeNote(method) {
+        const charge = String(method?.charge_currency || '').toUpperCase();
+        const display = this.sdk.localization.currency;
+        const total = Number(this.state.totals?.total);
+
+        if (!charge || charge === display || !Number.isFinite(total)) return '';
+
+        const amount = this.money(this.sdk.convert(total, charge), charge);
+
+        return `<small class="f-checkout__charge-note">${this.escape(this.trans('checkout.charged_in', { amount }))}</small>`;
     }
 
     /* ---- review */

@@ -673,8 +673,23 @@ body.f-modal-open { overflow: hidden; }
 .f-trust__label { font-size: 0.68rem; opacity: 0.7; }
 .f-trust__value { font-weight: 700; font-variant-numeric: tabular-nums; }
 .f-trust__glyph { flex: none; color: var(--color-primary, #1d9e75); }
+
+/* The certificate logos ship as 300–600px PNGs; without a cap they rendered
+   at full size and the footer card grew to hold them. A badge is a chip:
+   the logo is the height of two text lines, nothing more. */
+.f-trust__logo {
+    flex: none;
+    block-size: 2.25rem;
+    inline-size: auto;
+    max-inline-size: 4.5rem;
+    object-fit: contain;
+    border-radius: 0.35rem;
+}
+
 .f-trust--dark .f-trust__item { border-color: rgba(255, 255, 255, 0.22); }
 .f-trust--dark .f-trust__glyph { color: currentColor; }
+/* On a dark footer the logos keep their white plate so colour marks stay legible. */
+.f-trust--dark .f-trust__logo { background: #fff; padding: 0.15rem; }
 
 @media (prefers-reduced-motion: reduce) {
     .f-slider__track { scroll-behavior: auto; }

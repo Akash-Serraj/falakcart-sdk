@@ -65,6 +65,8 @@ import FalakBreadcrumb from './components/breadcrumb.js';
 import FalakLoginModal from './components/login-modal.js';
 import FalakUserMenu from './components/user-menu.js';
 import FalakLocalizationModal from './components/localization-modal.js';
+import FalakCurrency from './components/currency-switcher.js';
+import FalakLanguage from './components/language-switcher.js';
 import FalakOfferModal from './components/offer-modal.js';
 import FalakComments from './components/comments.js';
 import FalakQuestions from './components/questions.js';
@@ -148,6 +150,8 @@ const REGISTRY = {
     'falak-login-modal': FalakLoginModal,
     'falak-user-menu': FalakUserMenu,
     'falak-localization-modal': FalakLocalizationModal,
+    'falak-currency': FalakCurrency,
+    'falak-language': FalakLanguage,
     'falak-offer-modal': FalakOfferModal,
     'falak-offers': FalakOffers,
     'falak-comments': FalakComments,
@@ -183,7 +187,7 @@ export {
     FalakAccordion, FalakAccordionHead, FalakAccordionBody,
     FalakMenu, FalakBreadcrumb,
     FalakSocial, FalakPayments, FalakAppsIcons, FalakTrustBadges,
-    FalakLoginModal, FalakUserMenu, FalakLocalizationModal, FalakOfferModal, FalakOffers, FalakComments,
+    FalakLoginModal, FalakUserMenu, FalakLocalizationModal, FalakCurrency, FalakLanguage, FalakOfferModal, FalakOffers, FalakComments,
     FalakCountdown, FalakCountDown, FalakFilters,
     FalakCounter, FalakImageCompare, FalakCategories,
     REGISTRY,

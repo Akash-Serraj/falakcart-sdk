@@ -15,6 +15,13 @@ import FalakElement from '../base.js';
  * | value-min / value-max  | the initial selection (defaults to min/max)    |
  * | step                   | default 1                                      |
  *
+ * Attributes, `.range` and the `change` detail are all in the store's BASE
+ * currency — the one the listing's `?min_price=` is filtered in. What the
+ * shopper SEES is the display currency: the numbers and the slider scale are
+ * multiplied by the page's rate on the way out and divided on the way in,
+ * the same rate falak.money() applies, so a QAR shopper types QAR and the
+ * query string still carries base.
+ *
  * Events: DOM `change` on the element (detail: `{ min, max }`) — fired
  * once a drag ends or a typed number is committed, not on every frame of
  * a drag in progress.
@@ -26,6 +33,12 @@ export default class FalakPriceRange extends FalakElement {
     get max() { return Math.max(this.min + 1, this.numAttr('max', 1000)); }
     get step() { return Math.max(1, this.numAttr('step', 1)); }
     get range() { return { ...this._values }; }
+
+    /** base → display multiplier for this page; 1 when the shopper reads base. */
+    get rate() {
+        const rate = Number(this.sdk?.config?.get('currency.rate', 1));
+        return Number.isFinite(rate) && rate > 0 ? rate : 1;
+    }
 
     connectedCallback() {
         if (this._values === undefined) {
@@ -42,6 +55,10 @@ export default class FalakPriceRange extends FalakElement {
         return Math.min(this.max, Math.max(this.min, value));
     }
 
+    /* Whole display units: a filter slider has no use for cents. */
+    toDisplay(base) { return this.rate === 1 ? base : Math.round(base * this.rate); }
+    toBase(display) { return this.rate === 1 ? display : Math.round(display / this.rate); }
+
     percent(value) {
         return ((value - this.min) / (this.max - this.min)) * 100;
     }
@@ -50,19 +67,21 @@ export default class FalakPriceRange extends FalakElement {
         this.classList.add('f-price-range');
 
         const { min: valMin, max: valMax } = this._values;
+        const dMin = this.toDisplay(this.min), dMax = this.toDisplay(this.max);
+        const dValMin = this.toDisplay(valMin), dValMax = this.toDisplay(valMax);
 
         this.innerHTML = `
             <div class="f-price-range__numbers">
                 <input class="f-input f-price-range__number" type="number" data-range-number="min"
-                       min="${this.min}" max="${valMax}" step="${this.step}" value="${valMin}">
+                       min="${dMin}" max="${dValMax}" step="${this.step}" value="${dValMin}">
                 <span class="f-price-range__sep">—</span>
                 <input class="f-input f-price-range__number" type="number" data-range-number="max"
-                       min="${valMin}" max="${this.max}" step="${this.step}" value="${valMax}">
+                       min="${dValMin}" max="${dMax}" step="${this.step}" value="${dValMax}">
             </div>
             <div class="f-price-range__track">
                 <div class="f-price-range__fill" style="inset-inline-start: ${this.percent(valMin)}%; inset-inline-end: ${100 - this.percent(valMax)}%"></div>
-                <input class="f-price-range__slider" type="range" data-range-slider="min" min="${this.min}" max="${this.max}" step="${this.step}" value="${valMin}" aria-label="${this.escape(this.trans('common.minimum_price'))}">
-                <input class="f-price-range__slider" type="range" data-range-slider="max" min="${this.min}" max="${this.max}" step="${this.step}" value="${valMax}" aria-label="${this.escape(this.trans('common.maximum_price'))}">
+                <input class="f-price-range__slider" type="range" data-range-slider="min" min="${dMin}" max="${dMax}" step="${this.step}" value="${dValMin}" aria-label="${this.escape(this.trans('common.minimum_price'))}">
+                <input class="f-price-range__slider" type="range" data-range-slider="max" min="${dMin}" max="${dMax}" step="${this.step}" value="${dValMax}" aria-label="${this.escape(this.trans('common.maximum_price'))}">
             </div>`;
     }
 
@@ -101,14 +120,14 @@ export default class FalakPriceRange extends FalakElement {
     applySliderDrag(slider) {
         const which = slider.getAttribute('data-range-slider');
         const other = which === 'min' ? 'max' : 'min';
-        let value = Number(slider.value);
+        let value = this.clamp(this.toBase(Number(slider.value)));
 
         value = which === 'min' ? Math.min(value, this._values.max) : Math.max(value, this._values.min);
         this._values = { ...this._values, [which]: value };
 
-        slider.value = value;
+        slider.value = this.toDisplay(value);
         const otherSlider = this.querySelector(`[data-range-slider="${other}"]`);
-        if (otherSlider) otherSlider.value = this._values[other];
+        if (otherSlider) otherSlider.value = this.toDisplay(this._values[other]);
 
         const fill = this.querySelector('.f-price-range__fill');
         if (fill) {
@@ -117,12 +136,12 @@ export default class FalakPriceRange extends FalakElement {
         }
 
         const numberInput = this.querySelector(`[data-range-number="${which}"]`);
-        if (numberInput) numberInput.value = value;
+        if (numberInput) numberInput.value = this.toDisplay(value);
     }
 
     applyNumberInput(input) {
         const which = input.getAttribute('data-range-number');
-        let value = this.clamp(Number(input.value) || 0);
+        let value = this.clamp(this.toBase(Number(input.value) || 0));
 
         value = which === 'min' ? Math.min(value, this._values.max) : Math.max(value, this._values.min);
         this._values = { ...this._values, [which]: value };

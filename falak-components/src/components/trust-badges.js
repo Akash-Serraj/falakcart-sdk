@@ -3,6 +3,8 @@ import FalakElement from '../base.js';
 /**
  * <falak-trust-badges>          commercial register / freelance / VAT, from config
  * <falak-trust-badges dark>     light marks for a dark footer
+ * <falak-trust-badges logo-vat_number="…/vat.png">   the real mark instead of the seal
+ * <falak-trust-badges documents='{"vat_number":"3001…"}'>   theme-held numbers over the store's
  *
  * In Saudi Arabia a store must display its commercial register or freelance
  * certificate number, so this is a compliance surface rather than decoration.
@@ -14,7 +16,11 @@ import FalakElement from '../base.js';
  * platform can surface it to the merchant as an actual warning.
  */
 export default class FalakTrustBadges extends FalakElement {
-    static observedAttributes = ['dark', 'hide-title'];
+    static observedAttributes = [
+        'dark', 'hide-title', 'documents',
+        'logo-company_registration_number', 'logo-freelance_number',
+        'logo-vat_number', 'logo-business_center_certificate',
+    ];
 
     /**
      * The four fields of BasicSettings.documents_number, which the platform
@@ -31,13 +37,27 @@ export default class FalakTrustBadges extends FalakElement {
     };
 
     get badges() {
-        const documents = this.sdk.config.get('store.settings.documents', {}) || {};
+        /*
+         * Store record first, theme settings on top — a blank theme field must
+         * not erase a number the merchant entered in Basic settings, so only
+         * filled values from the attribute take effect.
+         */
+        const fromStore = this.sdk.config.get('store.settings.documents', {}) || {};
+        const fromTheme = this.jsonAttr('documents', null) || {};
+        const documents = { ...fromStore };
+
+        Object.entries(fromTheme).forEach(([key, value]) => {
+            if (value !== null && value !== undefined && String(value).trim() !== '') documents[key] = value;
+        });
 
         return Object.entries(FalakTrustBadges.DOCUMENTS)
             .map(([key, translationKey]) => ({
                 key,
                 value: documents[key],
                 label: this.trans(translationKey),
+                // The official mark for this certificate, when the theme ships
+                // one. Absent, the badge keeps the seal it always had.
+                logo: this.attr(`logo-${key}`) || null,
             }))
             .filter(badge => badge.value !== null && badge.value !== undefined && badge.value !== '');
     }
@@ -59,7 +79,9 @@ export default class FalakTrustBadges extends FalakElement {
             <ul class="f-trust__list">
                 ${badges.map(badge => `
                     <li class="f-trust__item f-trust__item--${badge.key}">
-                        <span class="f-trust__glyph" aria-hidden="true">${SEAL}</span>
+                        ${badge.logo
+                            ? `<img class="f-trust__logo" src="${this.escape(badge.logo)}" alt="" loading="lazy" data-trust-logo>`
+                            : `<span class="f-trust__glyph" aria-hidden="true">${SEAL}</span>`}
                         <span class="f-trust__text">
                             <span class="f-trust__label">${this.escape(badge.label)}</span>
                             <span class="f-trust__value">${this.escape(badge.value)}</span>
@@ -69,6 +91,22 @@ export default class FalakTrustBadges extends FalakElement {
     }
 
     afterRender() {
+        /*
+         * A logo that does not load — a file the theme has not shipped yet, a
+         * CDN hiccup — gives way to the seal rather than the browser's broken
+         * image glyph. Wired here rather than inline so no handler text goes
+         * through innerHTML.
+         */
+        this.querySelectorAll('img[data-trust-logo]').forEach(img => {
+            img.addEventListener('error', () => {
+                const seal = document.createElement('span');
+                seal.className = 'f-trust__glyph';
+                seal.setAttribute('aria-hidden', 'true');
+                seal.innerHTML = SEAL;
+                img.replaceWith(seal);
+            }, { once: true });
+        });
+
         // Reported once, after layout has settled. A merchant hiding a required
         // badge is a compliance problem the platform should know about — but
         // that is the platform's call to make, not this component's.

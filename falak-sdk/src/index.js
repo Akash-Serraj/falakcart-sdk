@@ -121,7 +121,8 @@ function createSdk() {
         api,
 
         url: helpers.url,
-        money: (amount, currency) => helpers.money(amount, currency),
+        money: (amount, currency, options) => helpers.money(amount, currency, options),
+        convert: (amount, to, from) => helpers.convert(amount, to, from),
         number: value => helpers.number(value),
 
         product: domain(api.product, events.product),

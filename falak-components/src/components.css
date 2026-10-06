@@ -1172,6 +1172,8 @@ body.f-drawer-open { overflow: hidden; }
 .f-checkout__method-logo--empty { display: inline-flex; align-items: center; justify-content: center; color: var(--f-text-faint); }
 .f-checkout__method-text { display: flex; flex-direction: column; gap: 0.1rem; min-inline-size: 0; }
 .f-checkout__method-text small { color: var(--f-text-soft); }
+/* "You'll be charged 12.50 USD" — only under a method that settles in another currency. */
+.f-checkout__charge-note { font-size: 0.78rem; color: var(--f-text-faint); font-variant-numeric: tabular-nums; }
 .f-checkout__tag { color: var(--color-primary, #1d9e75) !important; font-weight: 600; }
 
 .f-checkout__form { display: flex; flex-direction: column; gap: 0.9rem; }

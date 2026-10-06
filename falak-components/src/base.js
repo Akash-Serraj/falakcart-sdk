@@ -139,8 +139,8 @@ export default class FalakElement extends HTMLElement {
         return this.sdk.lang.get(key, replacements);
     }
 
-    money(amount, currency) {
-        return this.sdk.money(amount, currency);
+    money(amount, currency, options) {
+        return this.sdk.money(amount, currency, options);
     }
 
     escape(value) {

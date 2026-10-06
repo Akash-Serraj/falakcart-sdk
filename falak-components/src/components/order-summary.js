@@ -201,7 +201,28 @@ export default class FalakOrderSummary extends FalakElement {
                 ${order.cod_fee > 0 ? row(this.trans('checkout.cod_fee'), order.cod_fee) : ''}
                 ${order.tax > 0 ? row(this.trans('checkout.tax'), order.tax) : ''}
                 ${row(this.trans('cart.total'), order.total, 'f-order__row--total')}
+                ${this.chargedHtml(order)}
             </section>`;
+    }
+
+    /**
+     * "Your payment provider charged 240.03 $" — the gateway's own currency
+     * and amount, frozen on the order at checkout, when it differs from what
+     * the shopper is reading now. Printed verbatim (`money(amount, code)` with
+     * a non-base code formats as given), never re-converted at today's rate.
+     * Orders from before the snapshot have no charged_currency and show nothing.
+     */
+    chargedHtml(order) {
+        const charged = String(order.charged_currency || '').toUpperCase();
+        const display = this.sdk.localization.currency;
+
+        if (!charged || charged === display || !Number.isFinite(Number(order.charged_amount))) return '';
+
+        // A base-currency charge must not go through the display conversion.
+        const amount = this.sdk.money(order.charged_amount, charged, { convert: false });
+
+        return `
+            <p class="f-order__charged">${this.escape(this.trans('thank_you.charged', { amount }))}</p>`;
     }
 
     detailsHtml(order) {

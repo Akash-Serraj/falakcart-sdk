@@ -4,10 +4,16 @@ import BaseApi from './base.js';
  * Language and currency.
  *
  * Neither is a server round trip on this platform: the storefront reads `?lang`
- * per request, and the merchant's currency comes down in config. So the API
- * surface here is small on purpose — it fetches exchange rates when a shopper
- * wants prices in something other than the store currency, and otherwise just
- * reads what the platform already sent.
+ * and `?currency` per request and remembers each in a cookie, and the
+ * merchant's currencies come down in config. So the API surface here is small
+ * on purpose — it reads what the platform already sent and, to switch, it
+ * navigates.
+ *
+ * Currency, specifically, is decided server-side. The page arrives with the
+ * display currency and the rate already applied to every price Twig printed,
+ * and with the same rate in config for falak.money(). Switching therefore has
+ * to be a navigation: converting in place would leave the server-rendered
+ * prices in the old currency next to the re-rendered ones.
  */
 export default class LocalizationApi extends BaseApi {
     constructor(client, event, config, storage) {
@@ -65,18 +71,49 @@ export default class LocalizationApi extends BaseApi {
 
     /* ----------------------------------------------------------- currencies */
 
+    /** What the shopper is reading prices in — the server's answer, never a local override. */
     get currency() {
-        return this.storage.get('currency') || this.config.get('currency.code', 'SAR');
+        return String(this.config.get('currency.display', this.config.get('currency.code', 'SAR'))).toUpperCase();
+    }
+
+    /** The store's own currency, which every amount the API returns is in. */
+    get baseCurrency() {
+        return String(this.config.get('currency.code', 'SAR')).toUpperCase();
+    }
+
+    /**
+     * The currencies the merchant lets shoppers switch to, as
+     * `[{ code, name, label }]` with the store's own first. One entry means
+     * there is nothing to switch — <falak-currency> renders nothing then.
+     *
+     * Synchronous: the list comes down in config, so a switcher paints with
+     * the page. (This used to fetch exchange rates; that is `rates()` now, and
+     * an `await` on this still resolves to the same array.)
+     */
+    currencies() {
+        const configured = this.config.get('currency.enabled');
+
+        if (Array.isArray(configured) && configured.length) return configured;
+
+        const base = this.baseCurrency;
+        const labels = this.config.get('currency.labels', {}) || {};
+
+        return [{ code: base, name: base, label: labels[base] || base }];
+    }
+
+    /** True when the switcher has more than one option. */
+    get isMultiCurrency() {
+        return !!this.config.get('currency.multi', false) || this.currencies().length > 1;
     }
 
     /**
      * Exchange rates, cached for an hour.
      *
-     * Rates move slowly and a currency switcher on every page would otherwise
-     * re-request them on every navigation, so the TTL is doing real work here
-     * rather than being a habit.
+     * Informational only — prices are never converted in the browser. Rates
+     * move slowly and a page that shows them would otherwise re-request them
+     * on every navigation, so the TTL is doing real work here.
      */
-    async currencies() {
+    async rates() {
         const cached = this.storage.getWithTTL('currency.rates');
 
         if (cached) return cached;
@@ -99,20 +136,34 @@ export default class LocalizationApi extends BaseApi {
     }
 
     /**
-     * Records the choice and reloads.
+     * Same shape as languageUrl(): the storefront reads `?currency` on the
+     * way in, converts every price it renders, and sets the cookie so the
+     * next page needs no parameter.
+     */
+    currencyUrl(code) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('currency', String(code).toUpperCase());
+        return url.toString();
+    }
+
+    /**
+     * Records the choice and navigates.
      *
-     * Prices are formatted server-side as well as by falak.money(), so a full
+     * Prices are formatted server-side as well as by falak.money(), so a
      * reload is the only way to get both agreeing. Converting in place would
      * leave server-rendered prices in the old currency.
      */
-    async switchCurrency(code) {
-        if (code === this.currency) return null;
+    switchCurrency(code) {
+        code = String(code || '').toUpperCase();
+
+        if (!code || code === this.currency) return null;
+
+        if (!this.currencies().some(option => option.code === code)) return null;
 
         this.storage.set('currency', code);
-        this.config.set('currency.code', code);
         this.event.currencyChanged({ code });
 
-        window.location.reload();
+        window.location.href = this.currencyUrl(code);
 
         return code;
     }
@@ -122,7 +173,7 @@ export default class LocalizationApi extends BaseApi {
 function normalise(response) {
     const raw = Array.isArray(response)
         ? response
-        : (response?.data ?? response?.rates ?? response?.exchange_rates ?? []);
+        : (response?.data ?? response?.rates ?? response?.exchange_rates ?? response?.conversion_rates ?? []);
 
     if (Array.isArray(raw)) {
         return raw
@@ -138,7 +189,7 @@ function normalise(response) {
     // `{ "USD": 3.75, "AED": 0.98 }`
     if (raw && typeof raw === 'object') {
         return Object.entries(raw).map(([code, rate]) => ({
-            code: code.toUpperCase(),
+            code: String(code).toUpperCase(),
             name: null,
             symbol: null,
             rate: Number(rate) || 1,

@@ -4,6 +4,7 @@ import FalakElement from '../base.js';
  * <falak-products-slider source="latest" limit="10" block-title="New arrivals">
  * <falak-products-slider source="category" source-value="3" slides-per-view="5">
  * <falak-products-slider source="json" source-value='[{...}]'>
+ * <falak-products-slider empty-message="No products added yet">
  *
  * Composition rather than reimplementation: this fetches products and hands them
  * to <falak-slider>, which hands each one to a product card. None of the three
@@ -104,10 +105,28 @@ export default class FalakProductsSlider extends FalakElement {
             return;
         }
 
-        // An empty carousel is worse than no carousel — a merchant section with
-        // no products should collapse, not leave a titled empty band.
         if (!this.products.length) {
             this.setState('state', 'empty');
+
+            /*
+             * A section that supplies `empty-message` wants the shopper told
+             * there is nothing here yet, so the copy replaces the rail and the
+             * head above it stays. Styled with the list component's message
+             * classes rather than new ones — same state, same look.
+             */
+            const message = this.attr('empty-message');
+
+            if (message) {
+                this.removeAttribute('hidden');
+                this.innerHTML = `
+                    <div class="f-list__message f-list__message--empty">
+                        <p>${this.escape(message)}</p>
+                    </div>`;
+                return;
+            }
+
+            // Without it: an empty carousel is worse than no carousel, so the
+            // section collapses — the behaviour every existing caller relies on.
             this.innerHTML = '';
             this.setAttribute('hidden', '');
             return;

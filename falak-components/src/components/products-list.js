@@ -4,6 +4,7 @@ import FalakElement from '../base.js';
  * <falak-products-list limit="8" columns="4">
  * <falak-products-list category="3" limit="12" search="shirt">
  * <falak-products-list sort="top_rated" product-card-component="my-card">
+ * <falak-products-list empty-message="No products added yet">
  *
  * Component #5, and the one that closes the loop: it is the only component in
  * the starter set that owns a request lifecycle (loading -> loaded | empty |
@@ -121,9 +122,15 @@ export default class FalakProductsList extends FalakElement {
         }
 
         if (!this.items?.length) {
+            /*
+             * `empty-message` lets the SECTION say what empty means here. The
+             * default reads as a search that matched nothing, which is right on
+             * a listing and wrong on a home band of a store that simply has no
+             * products yet — and the component cannot tell those apart.
+             */
             this.innerHTML = `
                 <div class="f-list__message f-list__message--empty">
-                    <p>${this.escape(this.trans('product.none_found'))}</p>
+                    <p>${this.escape(this.attr('empty-message') || this.trans('product.none_found'))}</p>
                 </div>`;
             return;
         }
