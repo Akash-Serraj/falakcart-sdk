@@ -67,7 +67,8 @@ export default class Helpers {
          */
         const label = (this.config.get('currency.labels', {}) || {})[code] || code;
 
-        return `${formatted} ${label}`;
+        // No-break space, as CurrencyFormatter prints it: amount and symbol stay on one line.
+        return `${formatted} ${label}`;
     }
 
     /**
