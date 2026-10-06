@@ -172,6 +172,20 @@ function createSdk() {
             if (stored) config.set('user', stored);
         }
 
+        /*
+         * Two sessions must agree: this storage token (what the API sees) and
+         * the HttpOnly cookie (what server-rendered pages see). The cookie can
+         * go missing on its own — expired, cleared, or issued for a domain the
+         * browser refused — and then the header counts a cart the cart page
+         * renders as empty. The server says whether it recognised a customer
+         * (`auth.server`); if it did not but we hold a token, re-set the
+         * cookie from here and reload once. Once per token: a token the server
+         * rejects would otherwise loop.
+         */
+        if (config.get('token') && config.get('auth.server') === false) {
+            api.auth.syncCookie({ reload: true });
+        }
+
         // A theme that ships strings inline has nothing to wait for.
         if (!lang.loaded && config.get('theme.translations_inline', true)) {
             lang.setMessages(options.translations || window.falakTranslations || {});

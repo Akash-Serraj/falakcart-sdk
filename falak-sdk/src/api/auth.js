@@ -23,12 +23,13 @@ export default class AuthApi extends BaseApi {
             sendOtp: '/api/customer/auth/send-otp',
             verifyOtp: '/api/customer/auth/verify-otp',
             logout: '/api/customer/logout',
+            cookie: '/api/customer/auth/cookie',
             user: '/api/customer/user',
             profile: '/api/customer/profile',
             updateProfile: '/api/customer/profile',
         };
 
-        this.methods = { sendOtp: 'post', verifyOtp: 'post', logout: 'post', user: 'get', profile: 'get', updateProfile: 'put' };
+        this.methods = { sendOtp: 'post', verifyOtp: 'post', logout: 'post', cookie: 'post', user: 'get', profile: 'get', updateProfile: 'put' };
     }
 
     /* --------------------------------------------------------------- state */
@@ -195,6 +196,7 @@ export default class AuthApi extends BaseApi {
         if (token) {
             this.config.set('token', token);
             this.storage.set('auth.token', token);
+            this.writeCookie(token);
         }
 
         if (user) {
@@ -210,8 +212,77 @@ export default class AuthApi extends BaseApi {
         this.config.set('user', null);
         this.storage.remove('auth.token');
         this.storage.remove('auth.user');
+        this.writeCookie(null);
 
         return this;
+    }
+
+    /* --------------------------------------------------------- the cookie */
+
+    /** Same name AuthenticateFromCookie reads on the server. */
+    static COOKIE = 'falak_auth';
+
+    /**
+     * Mirror the token into the cookie server-rendered pages read.
+     *
+     * The server sets this cookie HttpOnly at login; this copy is the
+     * fallback for when that one is gone (expired, cleared, refused on a
+     * custom domain). Host-only and SameSite=Lax, like the server's; the
+     * token is already in storage, so a script-readable copy gives an
+     * attacker nothing new. Null clears it.
+     */
+    writeCookie(token) {
+        if (typeof document === 'undefined') return;
+
+        const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+        const maxAge = token ? 60 * 60 * 24 * 30 : 0;
+
+        document.cookie = `${AuthApi.COOKIE}=${token ? encodeURIComponent(token) : ''}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
+    }
+
+    /**
+     * Called at init when the page rendered as a guest while we hold a token:
+     * put the cookie back and, once per token, reload so the page is
+     * rendered for the customer. Guarded in sessionStorage so a token the
+     * server no longer honours cannot loop the page.
+     */
+    async syncCookie({ reload = false } = {}) {
+        const token = this.token;
+        if (!token) return false;
+
+        const key = 'falak.auth.cookie-synced';
+        let synced = null;
+        try { synced = window.sessionStorage?.getItem(key); } catch (e) { /* storage blocked */ }
+
+        // Already tried for this token during this tab's life: the server did
+        // not recognise it, so do not reload again.
+        if (reload && synced === token) return false;
+        try { if (reload) window.sessionStorage?.setItem(key, token); } catch (e) { /* storage blocked */ }
+
+        /*
+         * Preferred: the server re-issues the cookie (HttpOnly, host-scoped)
+         * and retires any older domain-scoped one the browser still holds —
+         * a script cannot delete that one. If the call fails (offline, or a
+         * token the server rejects — which also clears our copy), fall back
+         * to writing the cookie from here; a rejected token then simply
+         * renders the page as the guest it is.
+         */
+        let ok = false;
+        try {
+            await this.client.withoutNotifier(() => this.call('cookie'));
+            ok = true;
+        } catch (error) {
+            if ((error?.falak?.status ?? error?.status) === 401) {
+                this.forget();
+                this.event.tokenInvalid(error);
+                return false;
+            }
+            this.writeCookie(token);
+        }
+
+        if (reload) window.location.reload();
+
+        return ok;
     }
 
     /**
