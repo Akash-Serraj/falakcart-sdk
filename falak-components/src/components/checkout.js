@@ -34,8 +34,89 @@ export default class FalakCheckout extends FalakElement {
         GB: ['United Kingdom', 'المملكة المتحدة'], US: ['United States', 'الولايات المتحدة'],
     };
 
-    static NEEDS_DISTRICTS = ['logestechs', 'delex'];
-    static NEEDS_NATIONAL_ADDRESS = ['fastcoo'];
+    /**
+     * What this shipping method needs — read through the SDK.
+     *
+     * The SDK owns this so a theme building its own checkout gets the same
+     * answers instead of rediscovering that LogesTechs needs a district and
+     * Fastcoo a national address. It also handles the fallback for a cached
+     * payload that predates the `capabilities` field.
+     *
+     * The `?.` chain is not defensive habit: the SDK and these components are
+     * SEPARATE bundles loaded from `window`, so a page can genuinely be serving
+     * an older SDK than this component. When that happens the method below
+     * keeps the component working rather than throwing mid-render.
+     */
+    methodCapabilities(method) {
+        const viaSdk = this.sdk?.checkout?.capabilities;
+
+        if (typeof viaSdk === 'function') {
+            return viaSdk.call(this.sdk.checkout, method);
+        }
+
+        return FalakCheckout.capabilitiesWithoutSdk(method);
+    }
+
+    /**
+     * The same answer without the SDK, for an older SDK bundle.
+     *
+     * Deliberately minimal — just enough for the form to render and validate
+     * correctly. The SDK's version is the real one.
+     */
+    static capabilitiesWithoutSdk(method) {
+        const none = {
+            integrated: false,
+            requires_district: false,
+            requires_national_address: false,
+            checkout_fields: [],
+        };
+
+        if (!method || method.shipment_type === 'private_courier') {
+            return none;
+        }
+
+        if (method.capabilities) {
+            return { ...none, ...method.capabilities };
+        }
+
+        /*
+         * The last carrier list on the client, and only reachable with an old
+         * SDK and an old payload at once. `shipflow` is included: the earlier
+         * version of this table listed logestechs and delex but not shipflow,
+         * which runs on the same adapter and refuses a shipment without a
+         * district just as firmly — so a Shipflow order could not be placed at
+         * all and nothing said why.
+         */
+        const district = {
+            key: 'district',
+            type: 'select',
+            label_key: 'checkout.district',
+            required: true,
+            depends_on: 'city',
+            options_from: 'districts',
+        };
+
+        const legacy = {
+            logestechs: { requires_district: true, checkout_fields: [district] },
+            delex: { requires_district: true, checkout_fields: [district] },
+            shipflow: { requires_district: true, checkout_fields: [district] },
+            fastcoo: {
+                requires_national_address: true,
+                checkout_fields: [{
+                    key: 'national_address',
+                    type: 'text',
+                    label_key: 'checkout.national_address',
+                    required: true,
+                    depends_on: null,
+                    options_from: null,
+                    max_length: 32,
+                    placeholder: 'ABCD1234',
+                }],
+            },
+        };
+
+        return { ...none, ...(legacy[String(method.code || '').toLowerCase()] || {}) };
+    }
 
     get thankYouUrl() { return this.attr('thank-you-url', '/thank-you/{order}'); }
     get cartUrl() { return this.attr('cart-url', '/cart'); }
@@ -56,7 +137,26 @@ export default class FalakCheckout extends FalakElement {
             countries: [],           // [{code, name}]
             cities: [],              // [{value, name}]
             districts: [],           // [{id, name, nationalAddress?}]
+            /*
+             * Whether the district lookup has been attempted and what came of
+             * it. An empty list used to mean both "not needed" and "the
+             * carrier did not answer", so a failed lookup silently removed a
+             * REQUIRED field and the order was then rejected for missing it.
+             */
+            districtsLoading: false,
+            districtsFailed: false,
             citiesLoading: false,
+            /*
+             * What the shopper has typed to narrow the city list.
+             *
+             * Filtering happens here rather than on the server because the
+             * list is already loaded — Fastcoo serves 3,185 cities — so a
+             * round trip per keystroke would be slower and would break while
+             * offline. It also keeps the wire contract unchanged.
+             */
+            citySearch: '',
+            /* Whether the city panel is open. */
+            cityOpen: false,
             form: {
                 name: user.name || '',
                 phone: user.phone || '',
@@ -249,22 +349,94 @@ export default class FalakCheckout extends FalakElement {
         const m = this.state.method;
         const isCourier = m.shipment_type === 'private_courier';
         const freeCity = isCourier && this.truthy(m.all_cities);
-        const needsDistricts = !isCourier && FalakCheckout.NEEDS_DISTRICTS.includes(m.code);
-        const needsNational = !isCourier && FalakCheckout.NEEDS_NATIONAL_ADDRESS.includes(m.code);
+        const caps = this.methodCapabilities(m);
+        /*
+         * The carrier's own declared extra fields, served by the backend.
+         * The renderer and the validator both read THIS, which is what stops
+         * them disagreeing — the previous pair of booleans let the validator
+         * demand a district the renderer had not drawn.
+         */
+        const extraFields = isCourier ? [] : (caps.checkout_fields || []);
 
         const countryOptions = this.state.countries.map(c =>
             `<option value="${this.escape(c.code)}" ${c.code === f.country ? 'selected' : ''}>${this.escape(c.name)}</option>`).join('');
 
-        // City is a free field for now: typed, with the carrier's or courier's
-        // list offered as suggestions when there is one. Optional.
-        const suggestions = this.state.cities.length
-            ? `<datalist id="f-checkout-cities">${this.state.cities.map(c => `<option value="${this.escape(c.name)}"></option>`).join('')}</datalist>`
-            : '';
-        const cityField = `
-            <input class="f-input" type="text" name="city" value="${this.escape(f.cityName || f.city)}"
-                   placeholder="${this.escape(this.state.citiesLoading ? this.trans('common.loading') : this.trans('checkout.city'))}"
-                   ${suggestions ? 'list="f-checkout-cities"' : ''} autocomplete="address-level2" data-checkout-field="cityName">
-            ${suggestions}`;
+        /*
+         * A SELECT, like country, whenever the carrier has a city list.
+         *
+         * It used to be a free-text input with a datalist, and that was the
+         * root of the district bug: `chooseCity()` — the only thing that loads
+         * districts — was wired to `[data-checkout-city]`, a select that no
+         * longer existed in the markup, so it never ran for any city and the
+         * district list stayed permanently empty.
+         *
+         * A select also stops the shopper inventing a city the carrier does not
+         * serve, and carries the carrier's own city id as the option value
+         * instead of recovering it by matching a typed name back.
+         */
+        const cityLabel = c => (this.isRtl && c.name_ar) ? c.name_ar : c.name;
+        const matches = this.matchingCities();
+
+        /*
+         * The chosen city is always an option, even when the current search
+         * does not match it — otherwise typing a new search would silently
+         * deselect what the shopper had already picked.
+         */
+        const chosen = this.state.cities.find(c => String(c.value) === String(f.city));
+        const shown = chosen && !matches.some(c => String(c.value) === String(chosen.value))
+            ? [chosen, ...matches]
+            : matches;
+
+        /*
+         * ONE control: a button showing the chosen city, which opens a panel
+         * holding the search box and the filtered list.
+         *
+         * A separate search input beside a separate <select> was two controls
+         * for one decision, and it was not obvious the box filtered the list
+         * below it. This is the shape a select2-style widget has, built from
+         * plain elements so it needs no library and keeps working without JS
+         * for the no-list case below.
+         */
+        const cityField = this.state.cities.length
+            ? `<div class="f-combo${this.state.cityOpen ? ' is-open' : ''}" data-checkout-city-combo>
+                   <button type="button" class="f-input f-combo__toggle" data-checkout-city-toggle
+                           aria-expanded="${this.state.cityOpen ? 'true' : 'false'}" aria-haspopup="listbox"
+                           ${this.state.citiesLoading ? 'disabled' : ''}>
+                       <span class="f-combo__value${f.city ? '' : ' is-placeholder'}">${this.escape(
+                           f.city ? (f.cityName || this.cityNameFor(f.city)) : this.trans('checkout.choose_city')
+                       )}</span>
+                       <span class="f-combo__caret" aria-hidden="true">▾</span>
+                   </button>
+                   ${this.state.cityOpen ? `
+                   <div class="f-combo__panel" role="listbox">
+                       <input class="f-input f-combo__search" type="search" autocomplete="off"
+                              value="${this.escape(this.state.citySearch)}"
+                              placeholder="${this.escape(this.trans('checkout.search_city'))}"
+                              data-checkout-city-search aria-label="${this.escape(this.trans('checkout.search_city'))}">
+                       <ul class="f-combo__list">
+                           ${shown.length ? shown.map(c => `
+                           <li role="option" aria-selected="${String(c.value) === String(f.city) ? 'true' : 'false'}">
+                               <button type="button" class="f-combo__option${String(c.value) === String(f.city) ? ' is-chosen' : ''}"
+                                       data-checkout-city-option="${this.escape(c.value)}">${this.escape(cityLabel(c))}</button>
+                           </li>`).join('') : `
+                           <li class="f-combo__empty">${this.escape(this.trans('checkout.no_cities'))}</li>`}
+                       </ul>
+                       ${this.state.cities.length > shown.length ? `
+                       <small class="f-combo__hint">${this.escape(this.trans('checkout.cities_shown', {
+                           shown: shown.length,
+                           total: this.state.cities.length,
+                       }))}</small>` : ''}
+                   </div>` : ''}
+               </div>`
+            /*
+             * No list: a text input, because a disabled select would lock the
+             * shopper out. That is the real case for Aramex — its account is
+             * blocked so no list can be fetched — and for a private courier
+             * serving all cities.
+             */
+            : `<input class="f-input" type="text" name="city" value="${this.escape(f.cityName || f.city)}"
+                      placeholder="${this.escape(this.state.citiesLoading ? this.trans('common.loading') : this.trans('checkout.city'))}"
+                      autocomplete="address-level2" data-checkout-field="cityName">`;
         void freeCity;
 
         return `
@@ -284,15 +456,7 @@ export default class FalakCheckout extends FalakElement {
                         <span class="f-field__label">${this.escape(this.trans('checkout.city'))}</span>
                         ${cityField}
                     </label>
-                    ${needsDistricts && this.state.districts.length ? `
-                    <label class="f-field">
-                        <span class="f-field__label">${this.escape(this.trans('checkout.district'))} *</span>
-                        <select class="f-input" name="district" required data-checkout-district>
-                            <option value="">${this.escape(this.trans('checkout.choose_district'))}</option>
-                            ${this.state.districts.map(d => `<option value="${this.escape(d.id)}" ${String(d.id) === String(f.district) ? 'selected' : ''}>${this.escape(d.name)}</option>`).join('')}
-                        </select>
-                    </label>` : ''}
-                    ${needsNational ? this.field('nationalAddress', 'checkout.national_address', f.nationalAddress, 'text', true, 'ltr', 'ABCD1234') : ''}
+                    ${extraFields.map(field => this.checkoutFieldHtml(field)).join("")}
                     ${this.field('street', 'checkout.street', f.street, 'text', true, null, null, 'f-field--wide')}
                     ${this.field('postal', 'checkout.postal_code', f.postal, 'text', false, 'ltr')}
                 </div>
@@ -463,17 +627,71 @@ export default class FalakCheckout extends FalakElement {
         this.listen(this, 'click', event => {
             const t = event.target;
             if (t.closest('[data-checkout-signin]')) { this.sdk.event.dispatch('auth::required'); return; }
+            /* The city combobox: toggle, pick, or close on an outside click. */
+            if (t.closest('[data-checkout-city-toggle]')) {
+                this.syncForm();
+                this.state.cityOpen = !this.state.cityOpen;
+                this.state.citySearch = '';
+                this.render();
+                if (this.state.cityOpen) this.querySelector('[data-checkout-city-search]')?.focus();
+                return;
+            }
+
+            const option = t.closest('[data-checkout-city-option]');
+
+            if (option) {
+                const value = option.getAttribute('data-checkout-city-option');
+                this.state.cityOpen = false;
+                this.state.citySearch = '';
+                this.chooseCity(value, this.cityNameFor(value));
+                return;
+            }
+
+            if (this.state.cityOpen && !t.closest('[data-checkout-city-combo]')) {
+                this.state.cityOpen = false;
+                this.render();
+            }
+
             const goto = t.closest('[data-checkout-goto]');
             if (goto) { this.setStep(Number(goto.getAttribute('data-checkout-goto'))); return; }
             if (t.closest('[data-checkout-review]')) { this.goReview(); return; }
             if (t.closest('[data-checkout-place]')) { this.place(); }
         });
 
+        /*
+         * `input`, not `change`: the city list must narrow as the shopper
+         * types rather than only when the search box loses focus.
+         */
+        this.listen(this, 'input', event => {
+            if (!event.target.matches('[data-checkout-city-search]')) return;
+            this.state.citySearch = event.target.value;
+            this.render();
+            /* Re-renders replace the node, so focus and caret are restored. */
+            const box = this.querySelector('[data-checkout-city-search]');
+            if (box) { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }
+        });
+
         this.listen(this, 'change', event => {
             const t = event.target;
             if (t.matches('[data-checkout-method]')) { this.chooseMethod(t.value); return; }
             if (t.matches('[data-checkout-country]')) { this.chooseCountry(t.value); return; }
-            if (t.matches('[data-checkout-city]')) { this.chooseCity(t.value, t.options[t.selectedIndex]?.text || ''); return; }
+            /*
+             * The city is a TEXT input with a datalist, not a select — so this
+             * is what actually fires, and nothing was listening for it.
+             *
+             * `chooseCity()` was only reachable from `[data-checkout-city]`, a
+             * <select> that no longer exists in the markup, so districts were
+             * never fetched for any city. The order then went to the carrier
+             * with no village id and was refused: "Destination district
+             * (village) is required." The field had not been hidden by a
+             * failure — it had never been able to appear at all.
+             */
+            /*
+             * Only reached when there is no city LIST and the field falls back
+             * to a text input — Aramex, whose account is blocked, and couriers
+             * serving all cities. With a list the select above fires instead.
+             */
+            if (t.matches('[data-checkout-field="cityName"]')) { this.chooseTypedCity(t.value); return; }
             if (t.matches('[data-checkout-district]')) { this.chooseDistrict(t.value, t.options[t.selectedIndex]?.text || ''); return; }
             if (t.matches('[data-checkout-payment]')) { this.state.payment = t.value; this.render(); }
         });
@@ -492,6 +710,188 @@ export default class FalakCheckout extends FalakElement {
         super.disconnectedCallback();
     }
 
+    /**
+     * One of the carrier's declared extra fields.
+     *
+     * Every state is drawn, because a required field that renders nothing is
+     * the bug this schema replaced: the shopper was told to fill in a district
+     * that had no input on the page.
+     */
+    checkoutFieldHtml(field) {
+        const f = this.state.form;
+        const label = `${this.escape(this.trans(field.label_key))}${field.required ? ' *' : ''}`;
+
+        if (field.type !== 'select') {
+            return `
+                <label class="f-field">
+                    <span class="f-field__label">${label}</span>
+                    <input class="f-input" type="text" name="${this.escape(field.key)}"
+                           value="${this.escape(f[this.formKey(field.key)] || '')}"
+                           ${field.max_length ? `maxlength="${Number(field.max_length)}"` : ''}
+                           ${field.placeholder ? `placeholder="${this.escape(field.placeholder)}"` : ''}
+                           data-checkout-field="${this.escape(this.formKey(field.key))}">
+                </label>`;
+        }
+
+        const state = this.optionsState(field);
+
+        /* Unavailable is a message, not a field: there is nothing to pick. */
+        if (state === 'failed') {
+            return `
+                <div class="f-field f-field--wide">
+                    <p class="f-field__error" role="alert">${this.escape(this.trans('checkout.districts_unavailable'))}</p>
+                </div>`;
+        }
+
+        if (state !== 'ready') {
+            const message = state === 'waiting'
+                ? this.trans('checkout.choose_city_first')
+                : this.trans('checkout.loading_districts');
+
+            return `
+                <label class="f-field">
+                    <span class="f-field__label">${label}</span>
+                    <select class="f-input" disabled><option>${this.escape(message)}</option></select>
+                </label>`;
+        }
+
+        return `
+            <label class="f-field">
+                <span class="f-field__label">${label}</span>
+                <select class="f-input" name="${this.escape(field.key)}" ${field.required ? 'required' : ''} data-checkout-district>
+                    <option value="">${this.escape(this.trans('checkout.choose_district'))}</option>
+                    ${this.state.districts.map(d => `<option value="${this.escape(d.id)}" ${String(d.id) === String(f.district) ? 'selected' : ''}>${this.escape(d.name)}</option>`).join('')}
+                </select>
+            </label>`;
+    }
+
+    /** The display name for a stored city value, for the closed control. */
+    cityNameFor(value) {
+        const city = (this.state.cities || []).find(c => String(c.value) === String(value));
+
+        if (!city) return String(value || '');
+
+        return (this.isRtl && city.name_ar) ? city.name_ar : city.name;
+    }
+
+    /**
+     * Cities matching what the shopper has typed, capped for the DOM's sake.
+     *
+     * Fastcoo serves 3,185 cities and rendering every one as an <option> is
+     * both unreadable and heavy, so an empty search shows the first slice and
+     * typing narrows it. The cap is on what is RENDERED, never on what is
+     * searched — a city far down the alphabet is still findable by name.
+     *
+     * Matching ignores case, Arabic/English and punctuation, because a shopper
+     * types "al khobar" for a list that says "AL KHOBAR" and a carrier that
+     * says "Khubar".
+     */
+    matchingCities() {
+        const cities = this.state.cities || [];
+        const term = String(this.state.citySearch || '').trim().toLowerCase();
+
+        if (!term) {
+            return cities.slice(0, FalakCheckout.CITY_OPTION_LIMIT);
+        }
+
+        const loose = term.replace(/[^\p{L}\p{N}]+/gu, '');
+        const found = [];
+
+        for (const city of cities) {
+            const en = String(city.name || '').toLowerCase();
+            const ar = String(city.name_ar || '');
+
+            if (en.includes(term) || ar.includes(term)
+                || (loose && en.replace(/[^\p{L}\p{N}]+/gu, '').includes(loose))) {
+                found.push(city);
+
+                if (found.length >= FalakCheckout.CITY_OPTION_LIMIT) break;
+            }
+        }
+
+        return found;
+    }
+    /** `national_address` is held as `nationalAddress` on the form. */
+    formKey(key) {
+        return key === 'national_address' ? 'nationalAddress' : key;
+    }
+
+    /**
+     * Where a fetched select stands: waiting on its dependency, loading,
+     * failed, or ready — via the SDK, so the four states are defined once and
+     * a theme's own checkout gets them too.
+     */
+    optionsState(field) {
+        const state = {
+            form: this.state.form,
+            loading: this.state.districtsLoading,
+            failed: this.state.districtsFailed,
+            options: this.state.districts,
+        };
+
+        const viaSdk = this.sdk?.checkout?.fieldOptionsState;
+
+        if (typeof viaSdk === 'function') {
+            return viaSdk.call(this.sdk.checkout, field, state);
+        }
+
+        if (field.depends_on && !state.form[field.depends_on]) {
+            return 'waiting';
+        }
+
+        if (state.loading) {
+            return 'loading';
+        }
+
+        return (state.failed || !state.options.length) ? 'failed' : 'ready';
+    }
+
+    /**
+     * Which of this carrier's declared fields are unsatisfied.
+     *
+     * Delegates to the SDK so rendering and validation read one implementation.
+     * The inline fallback is for an older SDK bundle — these components and the
+     * SDK are built separately and loaded from `window`.
+     */
+    validateExtraFields() {
+        const fields = this.methodCapabilities(this.state.method).checkout_fields || [];
+        const state = {
+            form: this.state.form,
+            loading: this.state.districtsLoading,
+            failed: this.state.districtsFailed,
+            options: this.state.districts,
+        };
+
+        const viaSdk = this.sdk?.checkout?.validateCheckoutFields;
+
+        if (typeof viaSdk === 'function') {
+            return viaSdk.call(this.sdk.checkout, fields, state);
+        }
+
+        const missing = [];
+
+        for (const field of fields) {
+            if (!field?.required) continue;
+
+            if (field.type === 'select' || field.depends_on) {
+                const optionState = this.optionsState(field);
+
+                if (optionState === 'waiting') {
+                    missing.push(`checkout.${field.depends_on}`);
+                    continue;
+                }
+
+                if (optionState === 'failed') return { missing: [], blockedBy: 'districts_unavailable' };
+                if (optionState === 'loading') return { missing: [], blockedBy: 'loading' };
+            }
+
+            if (!String(this.state.form[this.formKey(field.key)] ?? '').trim()) {
+                missing.push(field.label_key);
+            }
+        }
+
+        return { missing, blockedBy: null };
+    }
     /** Text fields are read back before any re-render, so typing survives. */
     syncForm() {
         this.querySelectorAll('[data-checkout-field]').forEach(input => {
@@ -621,6 +1021,36 @@ export default class FalakCheckout extends FalakElement {
         }
     }
 
+    /**
+     * A city typed into the free-text field.
+     *
+     * Matched against the list the server sent so the carrier's own city id can
+     * be recovered — the carrier needs that id, not the shopper's spelling.
+     * An unrecognised name is kept (several carriers accept names they do not
+     * publish) but cannot load districts, and the form says so rather than
+     * leaving a required field invisible.
+     */
+    async chooseTypedCity(typed) {
+        const name = String(typed || '').trim();
+        const known = this.state.cities.find(
+            c => String(c.name).trim().toLowerCase() === name.toLowerCase()
+        );
+
+        if (!known) {
+            this.state.form.cityName = name;
+            this.state.form.city = '';
+            this.state.form.district = '';
+            this.state.form.districtName = '';
+            this.state.districts = [];
+            this.state.districtsFailed = false;
+            this.render();
+
+            return;
+        }
+
+        await this.chooseCity(known.value, known.name);
+    }
+
     async chooseCity(value, label) {
         this.syncForm();
         this.state.form.city = value;
@@ -630,11 +1060,27 @@ export default class FalakCheckout extends FalakElement {
         this.state.districts = [];
 
         const method = this.state.method;
-        if (method && method.shipment_type !== 'private_courier' && FalakCheckout.NEEDS_DISTRICTS.includes(method.code) && value) {
+        this.state.districtsFailed = false;
+
+        if (this.methodCapabilities(method).requires_district && value) {
+            this.state.districtsLoading = true;
+            this.render();
+
             try {
                 const raw = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.districts(method.code, value, label));
                 this.state.districts = raw.map(d => ({ id: d.id ?? d.value ?? d.name, name: (this.isRtl && d.arabicName) || d.name || d.value, nationalAddress: d.nationalAddress }));
-            } catch (error) { this.state.districts = []; }
+                /*
+                 * An empty answer is a FAILURE here, not an empty city. The
+                 * list comes from the carrier live, so nothing coming back
+                 * means we cannot offer a choice the order cannot go without.
+                 */
+                this.state.districtsFailed = this.state.districts.length === 0;
+            } catch (error) {
+                this.state.districts = [];
+                this.state.districtsFailed = true;
+            } finally {
+                this.state.districtsLoading = false;
+            }
         }
 
         this.render();
@@ -659,7 +1105,27 @@ export default class FalakCheckout extends FalakElement {
         if (!f.phone.trim()) missing.push(this.trans('checkout.phone'));
         if (!f.country) missing.push(this.trans('checkout.country'));
         if (!f.street.trim()) missing.push(this.trans('checkout.street'));
-        if (this.state.districts.length && !f.district) missing.push(this.trans('checkout.district'));
+        /*
+         * The carrier's declared extra fields, judged by the SDK — the same
+         * module `optionsState()` asks when rendering them, so the form cannot
+         * demand a field it has not drawn. That disagreement was both rounds of
+         * the district bug.
+         */
+        const verdict = this.validateExtraFields();
+
+        if (verdict.blockedBy === 'loading') {
+            /* Options still arriving; let the shopper try again in a moment. */
+            return;
+        }
+
+        if (verdict.blockedBy) {
+            error.textContent = this.trans(`checkout.${verdict.blockedBy}`);
+            error.hidden = false;
+
+            return;
+        }
+
+        verdict.missing.forEach(labelKey => missing.push(this.trans(labelKey)));
 
         if (missing.length) {
             error.textContent = this.trans('checkout.fill_required', { fields: missing.join(', ') });
@@ -769,6 +1235,15 @@ export default class FalakCheckout extends FalakElement {
             this.render();
         }
     }
+
+    /**
+     * How many city <option>s to put in the DOM at once.
+     *
+     * Fastcoo serves 3,185. Rendering them all is ~150KB of DOM in a control
+     * nobody can scan, so the list is sliced and the search box is how a city
+     * further down is reached.
+     */
+    static CITY_OPTION_LIMIT = 100;
 
     static ICONS = {
         user: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 15.5c-1.4.8-5.1 2.6-2.9 4.7 1.1 1 2.3 1.8 3.9 1.8h8.8c1.5 0 2.8-.8 3.9-1.8 2.3-2.2-1.4-3.9-2.9-4.7a11.7 11.7 0 0 0-10.8 0Z"/><circle cx="12" cy="6.5" r="4.5"/></svg>',

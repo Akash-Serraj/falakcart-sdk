@@ -1766,3 +1766,85 @@ body.f-drawer-open { overflow: hidden; }
 .f-categories--list .f-categories__list { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
 .f-categories--list .f-categories__link { grid-template-columns: 3rem minmax(0, 1fr); align-items: center; text-align: start; gap: 0.75rem; }
 .f-categories--list .f-categories__image { inline-size: 3rem; }
+
+/* ------------------------------------------------------------------ combobox
+ *
+ * The city picker: one control, not two.
+ *
+ * A separate search box beside a separate <select> was two controls for one
+ * decision, and nothing said the box filtered the list. This is the shape a
+ * select2-style widget has, built from a button and a panel so it needs no
+ * library — and the field falls back to a plain text input where a carrier has
+ * no city list at all, which is the Aramex case.
+ */
+.f-combo { position: relative; min-inline-size: 0; }
+
+.f-combo__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    text-align: start;
+    cursor: pointer;
+}
+
+.f-combo__toggle:disabled { cursor: default; opacity: 0.6; }
+
+.f-combo__value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Reads as a placeholder until a city is chosen. */
+.f-combo__value.is-placeholder { color: var(--f-muted, #6b7280); }
+
+.f-combo__caret { flex: none; font-size: 0.7em; opacity: 0.7; }
+.f-combo.is-open .f-combo__caret { transform: rotate(180deg); }
+
+.f-combo__panel {
+    position: absolute;
+    z-index: 30;
+    inset-inline: 0;
+    inset-block-start: calc(100% + 0.25rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.5rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    background: var(--f-surface);
+    box-shadow: 0 12px 32px rgb(0 0 0 / 12%);
+}
+
+.f-combo__list {
+    /* Scrolls rather than growing: 100 options are rendered at a time. */
+    max-block-size: 15rem;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.f-combo__option {
+    inline-size: 100%;
+    padding: 0.45rem 0.6rem;
+    border: 0;
+    border-radius: calc(var(--f-radius) / 1.5);
+    background: transparent;
+    color: var(--f-text);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+
+.f-combo__option:hover,
+.f-combo__option:focus-visible { background: var(--f-surface-alt, rgb(0 0 0 / 5%)); }
+.f-combo__option.is-chosen { font-weight: 600; }
+
+.f-combo__empty,
+.f-combo__hint {
+    padding: 0.35rem 0.6rem;
+    color: var(--f-muted, #6b7280);
+    font-size: 0.8rem;
+}

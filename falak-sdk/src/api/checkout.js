@@ -1,4 +1,5 @@
 import BaseApi from './base.js';
+import { capabilitiesOf, checkoutFieldsOf, fieldOptionsState, validateCheckoutFields } from './capabilities.js';
 
 /**
  * falak.checkout — everything between the cart and the order.
@@ -7,6 +8,10 @@ import BaseApi from './base.js';
  * order the checkout walks them:
  *
  *   shipmentGateways()                 the merchant's shipping options
+ *   capabilities(method)               what that method can do
+ *   checkoutFields(method)             the extra fields it needs
+ *   fieldOptionsState(field, state)    whether a field is answerable yet
+ *   validateCheckoutFields(fs, state)  which of them are unsatisfied
  *   paymentGateways()                  the merchant's payment methods
  *   countries(gateway)                 a shipping gateway's countries
  *   cities(gateway, country)           … cities of a country
@@ -75,6 +80,58 @@ export default class CheckoutApi extends BaseApi {
         return Array.isArray(list) ? list : [];
     }
 
+    /**
+     * What a shipping method can do — the server's answer, or a fallback for a
+     * cached payload that predates the field.
+     *
+     * Reads a payload you already have; makes no request. Exposed because a
+     * theme building its own checkout would otherwise have to rediscover that
+     * LogesTechs needs a district and Fastcoo a national address, which is the
+     * hardcoded carrier knowledge the capabilities payload exists to remove.
+     */
+    capabilities(method) {
+        return capabilitiesOf(method);
+    }
+
+    /**
+     * The extra fields this method needs beyond name, phone, country, city and
+     * street — each with its type, label key, whether it is required and what
+     * it depends on.
+     *
+     * Render AND validate from this one list. Two rounds of the same bug came
+     * from a renderer and a validator reading the same intention through
+     * separate code: first an order went out with no district and the carrier
+     * refused it, then the form demanded a district it had not drawn.
+     */
+    checkoutFields(method) {
+        return checkoutFieldsOf(method);
+    }
+
+    /**
+     * Whether a field's options are available yet: `waiting`, `loading`,
+     * `failed` or `ready`.
+     *
+     * Pass the form values plus the option list and its load state. A district
+     * cannot be chosen before a city, so `waiting` is a legitimate state in
+     * which the field is required but not yet answerable.
+     */
+    fieldOptionsState(field, state) {
+        return fieldOptionsState(field, state);
+    }
+
+    /**
+     * Which declared fields are unsatisfied, as `{ missing, blockedBy }`.
+     *
+     * `missing` holds label keys to name in "please fill in …"; `blockedBy`
+     * is set when the shopper cannot proceed at all — options that could not
+     * be loaded, or a lookup still in flight.
+     *
+     * Validate with this and render with `fieldOptionsState()` and the two
+     * cannot disagree, which is what both rounds of the district bug were.
+     */
+    validateCheckoutFields(fields, state) {
+        return validateCheckoutFields(fields, state);
+    }
     async districts(gatewayCode, cityId, cityName = null) {
         const query = { gateway_code: gatewayCode, city_id: cityId };
         if (cityName) query.city_name = cityName;
