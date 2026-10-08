@@ -173,7 +173,14 @@ export default class ApiClient {
 
         try {
             response = await fetch(url.toString(), init);
-            payload = await this.parse(response);
+            /*
+             * `responseType: 'blob'` is for files — an invoice PDF, a digital
+             * download. A 2xx is handed back as the Blob itself; an error
+             * still comes as JSON so the usual message handling applies.
+             */
+            payload = options.responseType === 'blob' && response.ok
+                ? await response.blob()
+                : await this.parse(response);
             if (timer) clearTimeout(timer);
         } catch (error) {
             // Network failure or an aborted request — never reached the server.

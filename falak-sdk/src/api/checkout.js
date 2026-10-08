@@ -17,6 +17,13 @@ import BaseApi from './base.js';
  *   paymentStatus(orderNumber, query)  the gateway's verdict after it returns
  *   order(orderNumber)                 the customer's order
  *
+ * And once the order exists:
+ *   downloadInvoice(n, lang)           saves the invoice PDF
+ *   downloads(n) / downloadFile(n, id) digital files bought on the order
+ *   returnEligibility(n) / requestReturn(n, payload) / returnRequests()
+ *   reviewOrder(n, { rating, comment }) the store-experience review
+ *   confirmDelivery(n) / cancelOrder(id) / trackShipment(identifier)
+ *
  * Every call is authenticated the way the rest of the SDK is (bearer token
  * from sign-in); a checkout requires a signed-in customer.
  */
@@ -39,11 +46,25 @@ export default class CheckoutApi extends BaseApi {
             retryPayment: '/api/customer/orders/{order}/retry-payment',
             order: '/api/customer/orders/{order}',
             orders: '/api/customer/orders',
+
+            // After the order: the documents and actions of one order.
+            invoice: '/api/customer/orders/{order}/invoice',
+            downloads: '/api/customer/orders/{order}/downloads',
+            downloadFile: '/api/customer/orders/{order}/download/{file}',
+            returnEligibility: '/api/customer/orders/{order}/return-eligibility',
+            returnRequest: '/api/customer/orders/{order}/return-request',
+            returnRequests: '/api/customer/orders/return-requests/list',
+            reviewOrder: '/api/customer/orders/{order}/review',
+            confirmDelivery: '/api/customer/orders/{order}/confirm-delivery',
+            cancelOrder: '/api/customer/orders/{id}/cancel',
+            trackShipment: '/api/customer/shipments/track',
         };
 
         this.methods = {
             shipmentGateways: 'get', paymentGateways: 'get', countries: 'get', cities: 'post',
             districts: 'get', calculateTotal: 'post', checkout: 'post', callback: 'get', retryPayment: 'post', order: 'get', orders: 'get',
+            invoice: 'get', downloads: 'get', downloadFile: 'get', returnEligibility: 'get', returnRequest: 'post',
+            returnRequests: 'get', reviewOrder: 'post', confirmDelivery: 'post', cancelOrder: 'delete', trackShipment: 'get',
         };
     }
 
@@ -180,5 +201,88 @@ export default class CheckoutApi extends BaseApi {
 
     async orders(query = {}) {
         return this.call('orders', { params: query });
+    }
+
+    /* ---------------------------------------------- one order, afterwards */
+
+    /**
+     * The invoice PDF, handed to the browser as a download. `lang` picks the
+     * document's language ('en' | 'ar'); the figures are always the store's
+     * base currency, which is what the merchant books.
+     */
+    async downloadInvoice(orderNumber, lang = 'en') {
+        // Rendering a PDF is slower than an API read; give it well past the client's 20 s default.
+        const blob = await this.call(['invoice', orderNumber], { params: { lang }, responseType: 'blob', timeout: 90000 });
+
+        CheckoutApi.saveBlob(blob, `Invoice_${orderNumber}_${lang}.pdf`);
+
+        return blob;
+    }
+
+    /** { order_number, downloads[] } — empty until the order is paid. */
+    async downloads(orderNumber) {
+        return this.call(['downloads', orderNumber]);
+    }
+
+    /** Streams one digital file and saves it under `filename` (or the file's own name). */
+    async downloadFile(orderNumber, fileId, filename = '') {
+        // A digital file can be large; let the stream run for minutes, not seconds.
+        const blob = await this.call(['downloadFile', orderNumber, fileId], { responseType: 'blob', timeout: 300000 });
+
+        CheckoutApi.saveBlob(blob, filename || `download-${fileId}`);
+
+        return blob;
+    }
+
+    /** { can_request_return, has_pending_return, return_deadline, returnable_items[] } */
+    async returnEligibility(orderNumber) {
+        return this.call(['returnEligibility', orderNumber]);
+    }
+
+    /** payload: { reason, customer_notes?, locale?, items?: [{ order_item_id, quantity }] } */
+    async requestReturn(orderNumber, payload) {
+        return this.call(['returnRequest', orderNumber], { body: payload });
+    }
+
+    async returnRequests(query = {}) {
+        return this.call('returnRequests', { params: query });
+    }
+
+    /** The order-level (store experience) review: { rating 1–5, comment? }. */
+    async reviewOrder(orderNumber, payload) {
+        return this.call(['reviewOrder', orderNumber], { body: payload });
+    }
+
+    async confirmDelivery(orderNumber) {
+        return this.call(['confirmDelivery', orderNumber], { body: {} });
+    }
+
+    /** By the order's numeric id — the one endpoint not keyed by order number. */
+    async cancelOrder(orderId) {
+        return this.call(['cancelOrder', orderId]);
+    }
+
+    /** Carrier tracking by order number or tracking number: { success, data: { tracking_details, public_tracking_url } }. */
+    async trackShipment(identifier) {
+        return this.call('trackShipment', { params: { identifier } });
+    }
+
+    /**
+     * Hands a Blob to the browser as a file. Object URLs are revoked a beat
+     * later so the click has consumed it first.
+     */
+    static saveBlob(blob, filename) {
+        if (!(blob instanceof Blob) || typeof document === 'undefined') return;
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = filename;
+        link.rel = 'noopener';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 }

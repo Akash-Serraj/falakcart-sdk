@@ -30,6 +30,15 @@ export default class ReviewApi extends BaseApi {
         this.methods = { add: 'post' };
     }
 
+    /**
+     * What a customer may still rate on one order:
+     * { reviewable_items: [{ product_id, product_name, can_review, review }], can_review_products, can_add_store_review }.
+     * Empty when reviews are off or the order is not delivered yet.
+     */
+    async reviewableItems(orderNumber) {
+        return this.call(['reviewableItems', orderNumber]);
+    }
+
     /* ---------------------------------------------------------------- read */
 
     /**
