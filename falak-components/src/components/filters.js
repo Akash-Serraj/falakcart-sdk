@@ -17,7 +17,7 @@ import FalakElement from '../base.js';
  *   { key: 'in_stock',    label: 'In stock',   type: 'boolean' }
  *
  *   values  → checkboxes, any number selected (OR within the group)
- *   minimum → radios, one selected ("4 stars & up")
+ *   minimum → radios, one selected (stars only; "& up" is screen-reader text)
  *   range   → <falak-price-range>
  *   boolean → one checkbox
  *
@@ -355,7 +355,7 @@ export default class FalakFilters extends FalakElement {
         const checked = this.isSelected(option, item.key);
 
         const text = option.key === 'rating'
-            ? `<falak-rating-stars value="${this.escape(String(item.key))}"></falak-rating-stars><span class="f-filters__option-name">${this.escape(this.label('filters.rating_up'))}</span>`
+            ? `<falak-rating-stars value="${this.escape(String(item.key))}"></falak-rating-stars><span class="f-filters__option-name f-filters__option-name--sr">${this.escape(this.label('filters.rating_up'))}</span>`
             : `<span class="f-filters__option-name">${this.escape(item.value)}</span>`;
 
         return `

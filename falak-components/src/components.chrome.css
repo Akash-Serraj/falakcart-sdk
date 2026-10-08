@@ -1693,6 +1693,16 @@ body.f-modal-open { overflow: hidden; }
 .f-filters__option-name { flex: 1; min-inline-size: 0; }
 .f-filters__count { font-size: 0.8rem; color: var(--f-text-faint); font-variant-numeric: tabular-nums; }
 .f-filters__option falak-rating-stars + .f-filters__option-name { flex: none; font-size: 0.8rem; color: var(--f-text-soft); }
+/* The rating row shows stars only; the "& up" qualifier stays for screen
+   readers so "4 stars" is still announced as a minimum, not an exact match. */
+.f-filters__option-name--sr {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
 
 .f-filters__empty { margin: 0; font-size: 0.85rem; color: var(--f-text-soft); }
 
