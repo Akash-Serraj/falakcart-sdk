@@ -36,13 +36,14 @@ export default class CheckoutApi extends BaseApi {
             calculateTotal: '/api/customer/orders/calculate-total',
             checkout: '/api/customer/orders/checkout',
             callback: '/api/customer/orders/callback/{order}',
+            retryPayment: '/api/customer/orders/{order}/retry-payment',
             order: '/api/customer/orders/{order}',
             orders: '/api/customer/orders',
         };
 
         this.methods = {
             shipmentGateways: 'get', paymentGateways: 'get', countries: 'get', cities: 'post',
-            districts: 'get', calculateTotal: 'post', checkout: 'post', callback: 'get', order: 'get', orders: 'get',
+            districts: 'get', calculateTotal: 'post', checkout: 'post', callback: 'get', retryPayment: 'post', order: 'get', orders: 'get',
         };
     }
 
@@ -140,6 +141,26 @@ export default class CheckoutApi extends BaseApi {
     /** The gateway's verdict once it has sent the shopper back. */
     async paymentStatus(orderNumber, query = {}) {
         return this.call(['callback', orderNumber], { params: query });
+    }
+
+    /**
+     * A second attempt at paying an order whose online payment failed or was
+     * abandoned. The order already exists and the cart was spent placing it,
+     * so this is the way back to the gateway — not the checkout. Replies like
+     * placeOrder(): `gateway_response.url` to send the shopper to. Pass
+     * `payment_method_id` to switch to another online method.
+     */
+    async retryPayment(orderNumber, payload = {}) {
+        const response = await this.call(['retryPayment', orderNumber], { body: payload });
+
+        this.event.orderPlaced({
+            orderNumber: response?.order_number ?? orderNumber,
+            redirectUrl: response?.gateway_response?.url ?? null,
+            response,
+            retry: true,
+        });
+
+        return response;
     }
 
     async order(orderNumber) {

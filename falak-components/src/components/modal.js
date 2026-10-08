@@ -20,6 +20,8 @@ export default class FalakModal extends FalakElement {
     static observedAttributes = ['visible', 'modal-title', 'sub-title', 'width', 'position', 'is-loading'];
 
     get isClosable() { return this.attr('is-closable', 'true') !== 'false'; }
+    /** `static`: a click on the backdrop does nothing; × and Escape still close. */
+    get isStatic() { return this.hasAttribute('static'); }
     get width() { return this.attr('width', 'md'); }
     get position() { return this.attr('position', 'middle'); }
     get visible() { return this.hasAttribute('visible'); }
@@ -212,6 +214,7 @@ export default class FalakModal extends FalakElement {
 
     dismiss(reason) {
         if (!this.isClosable) return;
+        if (reason === 'backdrop' && this.isStatic) return;
         this._dismissReason = reason;
         this.close();
     }

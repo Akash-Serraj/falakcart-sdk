@@ -47,7 +47,12 @@ export default class FalakPaymentStatus extends FalakElement {
                     <p>${this.escape(this._message || this.trans('checkout.payment_failed_hint'))}</p>
                     <div class="f-payment-status__actions">
                         ${number ? `<a class="f-btn f-btn--outline f-btn--light-outline" href="${this.escape(url(this.orderUrl))}">${this.escape(this.trans('account.order'))} #${this.escape(number)}</a>` : ''}
-                        <a class="f-btn f-btn--solid f-btn--primary" href="${this.escape(this.checkoutUrl)}">${this.escape(this.trans('checkout.try_again'))}</a>
+                        ${number
+                            ? `<button type="button" class="f-btn f-btn--solid f-btn--primary" data-retry ${this._retrying ? 'disabled' : ''}>
+                                   ${this._retrying ? '<span class="f-btn__loader" aria-hidden="true"></span>' : ''}
+                                   ${this.escape(this.trans('checkout.try_again'))}
+                               </button>`
+                            : `<a class="f-btn f-btn--solid f-btn--primary" href="${this.escape(this.checkoutUrl)}">${this.escape(this.trans('checkout.try_again'))}</a>`}
                     </div>
                 </div>`,
         };
@@ -59,7 +64,45 @@ export default class FalakPaymentStatus extends FalakElement {
         if (this._wired) return;
         this._wired = true;
 
+        this.listen(this, 'click', event => {
+            if (event.target.closest('[data-retry]')) this.retry();
+        });
+
         this.verify();
+    }
+
+    /**
+     * "Try again" pays the SAME order again. Placing the order already spent
+     * the cart, so sending the shopper back to the checkout only shows them
+     * an empty cart; the order is still there awaiting payment, and the
+     * retry endpoint hands back a fresh gateway URL for it. When a retry is
+     * refused (already paid, a method that cannot be retried) the reason is
+     * shown and the order link stays as the way forward.
+     */
+    async retry() {
+        if (this._retrying || !this._order) return;
+
+        this._retrying = true;
+        this.render();
+
+        try {
+            const response = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.retryPayment(this._order));
+            const url = response?.gateway_response?.url;
+            const status = String(response?.payment_status || '').toLowerCase();
+
+            if (url) { window.location.assign(url); return; }
+            if (['completed', 'paid', 'success'].includes(status)) {
+                window.location.assign(this.thankYouUrl.replace('{order}', encodeURIComponent(this._order)));
+                return;
+            }
+
+            this._message = response?.message || this.trans('checkout.payment_failed_hint');
+        } catch (error) {
+            this._message = error?.message || this.trans('checkout.payment_failed_hint');
+        }
+
+        this._retrying = false;
+        this.render();
     }
 
     async verify() {

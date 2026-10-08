@@ -350,15 +350,23 @@ export default class FalakCheckout extends FalakElement {
      * charges (`charge_currency`), and the amount is the order total converted
      * at the page's rates, the same ones the gateway charge will use. Silent
      * when the method charges the display currency.
+     *
+     * The API totals only exist once the shopper reaches the review step, so
+     * while the methods are being chosen the cart's own total stands in —
+     * close enough to tell a shopper reading KWD that COD settles in SAR.
+     * The review step calls this again with the exact figure.
      */
     chargeNote(method) {
         const charge = String(method?.charge_currency || '').toUpperCase();
         const display = this.sdk.localization.currency;
-        const total = Number(this.state.totals?.total);
+        const total = Number(this.state.totals?.total ?? this.sdk.cart.summary?.total);
 
         if (!charge || charge === display || !Number.isFinite(total)) return '';
 
-        const amount = this.money(this.sdk.convert(total, charge), charge);
+        // Printed AS the charge currency: money() would otherwise take a
+        // base-currency figure (COD, BNPL settling in SAR) for a catalog
+        // amount and convert it back into the display currency.
+        const amount = this.money(this.sdk.convert(total, charge), charge, { convert: false });
 
         return `<small class="f-checkout__charge-note">${this.escape(this.trans('checkout.charged_in', { amount }))}</small>`;
     }
@@ -387,6 +395,7 @@ export default class FalakCheckout extends FalakElement {
                     ${this.state.calculating || !t
                         ? `<div class="f-checkout__loading"><span class="f-modal__spinner" aria-hidden="true"></span></div>`
                         : `<p class="f-checkout__total-line">${this.escape(this.trans('checkout.total_to_pay'))} <b>${this.escape(this.money(t.total, t.currency))}</b></p>
+                           ${this.chargeNote(this.paymentMethod())}
                            <button type="button" class="f-btn f-btn--solid f-btn--primary f-btn--wide f-btn--large" data-checkout-place ${this.state.placing ? 'disabled' : ''}>
                                ${this.state.placing ? '<span class="f-btn__loader" aria-hidden="true"></span>' : ''}
                                ${this.escape(this.isCod ? this.trans('checkout.place_order') : this.trans('checkout.pay_now'))}
@@ -422,8 +431,11 @@ export default class FalakCheckout extends FalakElement {
                 <falak-cart-coupons class="f-checkout__coupon"></falak-cart-coupons>
                 <div class="f-checkout__totals">
                     ${t ? `
-                        ${row('cart.subtotal', t.subtotal)}
-                        ${Number(t.discount_amount) > 0 ? row('cart.discount', -Number(t.discount_amount), 'f-checkout__row--discount') : ''}
+                        ${row('cart.subtotal', t.list_subtotal ?? t.subtotal)}
+                        ${this.creditRows(row, t.list_subtotal !== undefined
+                            ? { product: t.product_discount, coupon: t.coupon_discount, offer: t.special_offer_discount }
+                            // An older totals endpoint only knows the combined figure.
+                            : { coupon: t.discount_amount })}
                         ${this.hasShipping ? row('checkout.shipping', t.shipping_cost) : ''}
                         ${Number(t.cod_fee) > 0 ? row('checkout.cod_fee', t.cod_fee, '', this.trans('checkout.cod_fee_hint')) : ''}
                         ${Number(t.tax_amount) > 0 ? row('checkout.tax', t.tax_amount) : ''}
@@ -441,9 +453,27 @@ export default class FalakCheckout extends FalakElement {
         const discount = Number(s.coupon_discount || 0) + Number(s.special_offer_discount || 0) + Number(s.product_discount || 0);
 
         return `${row('cart.subtotal', subtotal)}
-            ${discount > 0 ? row('cart.discount', -discount, 'f-checkout__row--discount') : ''}
+            ${this.creditRows(row, { product: s.product_discount, coupon: s.coupon_discount, offer: s.special_offer_discount })}
             ${discount > 0 ? row('checkout.total', Number(s.total ?? (subtotal - discount)), 'f-checkout__row--total') : ''}
             <p class="f-checkout__hint">${this.escape(this.trans('checkout.totals_after_address'))}</p>`;
+    }
+
+    /**
+     * The three credits the cart page and the cart drawer list — the
+     * products' own sale prices, the coupon, the special offer — in that
+     * order and under the same names, each left out while it is zero. One
+     * place renders them so the checkout can never label a credit
+     * differently from the cart.
+     */
+    creditRows(row, credits) {
+        return [
+            ['cart.product_discount', credits.product],
+            ['cart.discount', credits.coupon],
+            ['cart.special_offer', credits.offer],
+        ].map(([key, raw]) => {
+            const amount = Number(raw || 0);
+            return amount > 0 ? row(key, -amount, 'f-checkout__row--discount') : '';
+        }).join('');
     }
 
     /* --------------------------------------------------------- behaviour */

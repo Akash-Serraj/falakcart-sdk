@@ -33,26 +33,123 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary, #1d9e75) 18%, transparent);
 }
 
-/* Dial-code select beside the number; the row is forced LTR so the code
-   always reads +966 5xxxxxxxx, whatever the page direction. */
+/* Country picker beside the number. The row follows the page direction so
+   the picker sits at the start edge; the code and number themselves are LTR. */
 .f-login__phone-row { display: flex; gap: 0.5rem; }
 .f-login__phone-row .f-login__input { flex: 1 1 auto; min-inline-size: 0; }
 
-.f-login__dial {
-    flex: 0 0 auto;
-    padding: 0.7rem 0.6rem;
+.f-login__dial { position: relative; flex: 0 0 auto; }
+
+.f-login__dial-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    block-size: 100%;
+    padding: 0.7rem 0.7rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    background: var(--f-surface);
+    color: var(--f-text);
+    font: inherit;
+    font-size: 0.95rem;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+
+.f-login__dial-toggle:focus-visible,
+.f-login__dial-toggle[aria-expanded="true"] {
+    outline: none;
+    border-color: var(--color-primary, #1d9e75);
+}
+
+.f-login__dial-flag {
+    flex: none;
+    inline-size: 1.5rem;
+    block-size: 1.125rem;
+    object-fit: cover;
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+/* A chevron drawn from two borders; it flips while the list is open. */
+.f-login__dial-chevron {
+    inline-size: 0.45em;
+    block-size: 0.45em;
+    margin-block-start: -0.25em;
+    border-inline-end: 1.5px solid currentColor;
+    border-block-end: 1.5px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 0.15s ease;
+    opacity: 0.6;
+}
+.f-login__dial-toggle[aria-expanded="true"] .f-login__dial-chevron {
+    margin-block-start: 0.25em;
+    transform: rotate(-135deg);
+}
+
+.f-login__dial-menu {
+    position: absolute;
+    inset-inline-start: 0;
+    inset-block-start: calc(100% + 0.4rem);
+    z-index: 5;
+    inline-size: 16rem;
+    max-inline-size: calc(100vw - 3rem);
+    padding: 0.5rem;
+    border: 1px solid var(--f-border);
+    border-radius: var(--f-radius);
+    background: var(--f-surface);
+    box-shadow: 0 12px 32px rgba(8, 14, 12, 0.16);
+}
+
+.f-login__dial-search { padding-block-end: 0.5rem; }
+.f-login__dial-search-input {
+    inline-size: 100%;
+    padding: 0.5rem 0.65rem;
     border: 1px solid var(--f-border);
     border-radius: var(--f-radius);
     background: var(--f-surface);
     color: var(--f-text);
     font: inherit;
     font-size: 0.9rem;
-    cursor: pointer;
 }
-
-.f-login__dial:focus {
+.f-login__dial-search-input:focus {
     outline: none;
     border-color: var(--color-primary, #1d9e75);
+}
+
+.f-login__dial-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-block-size: 15rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.f-login__dial-option {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.45rem 0.5rem;
+    border-radius: calc(var(--f-radius) * 0.75);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+.f-login__dial-option[hidden] { display: none; }
+.f-login__dial-option:hover,
+.f-login__dial-option[data-active] { background: rgba(0, 0, 0, 0.05); }
+.f-login__dial-option[aria-selected="true"] {
+    background: color-mix(in srgb, var(--color-primary, #1d9e75) 12%, transparent);
+    font-weight: 600;
+}
+.f-login__dial-option-code { flex: none; direction: ltr; font-variant-numeric: tabular-nums; }
+.f-login__dial-option-name {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0.75;
 }
 
 /* The code field is read back digit by digit, so it gets room to breathe. */
