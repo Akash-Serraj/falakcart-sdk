@@ -10,10 +10,11 @@ import FalakElement from '../base.js';
  * on the storefront will follow.
  *
  * | attribute   | role                                                      |
- * | hide-offer  | suppress the special-offer ribbon on this card            |
+ * | show-offer  | draw the special-offer ribbon (off by default, see below) |
+ * | hide-offer  | kept for older markup; the ribbon is already off without it |
  */
 export default class FalakProductCard extends FalakElement {
-    static observedAttributes = ['product', 'product-id', 'hide-offer'];
+    static observedAttributes = ['product', 'product-id', 'hide-offer', 'show-offer'];
 
     get product() {
         return this._product || this.jsonAttr('product', null);
@@ -43,8 +44,18 @@ export default class FalakProductCard extends FalakElement {
         }
     }
 
-    /** Themes that do not want the ribbon opt out per card or per list. */
-    get hideOffer() { return this.boolAttr('hide-offer'); }
+    /*
+     * The special-offer ribbon is OPT-IN. The legacy storefront never put an
+     * offer on a product card: a card carried only what the product row
+     * itself says — the markdown percentage, "hot", free shipping — and
+     * offers were met in the header popup, under the buy box and in the
+     * cart tracker, all of which these themes also have. Drawn by default,
+     * the ribbon put an offer NAMED "50% off" beside a product's own
+     * "40% sale" and read as two discounts. `hide-offer` still parses so
+     * older markup keeps working; it simply no longer has anything to hide.
+     */
+    get showOffer() { return this.boolAttr('show-offer') && !this.boolAttr('hide-offer'); }
+    get hideOffer() { return !this.showOffer; }
 
     /** The dashboard master switch gates every offers surface. */
     get offersEnabled() {
@@ -69,7 +80,7 @@ export default class FalakProductCard extends FalakElement {
      * .fetch() memoises its promise, so forty cards cost one request.
      */
     loadOffer() {
-        if (this.hideOffer || !this.offersEnabled) return;
+        if (!this.showOffer || !this.offersEnabled) return;
 
         this.sdk.offer.fetch().then(offers => {
             if (this._offer) return;
@@ -404,8 +415,10 @@ export default class FalakProductCard extends FalakElement {
             <article class="f-card__inner">
                 <a class="f-card__media" href="${this.escape(product.url)}" tabindex="-1" aria-hidden="true">
                     ${this.mediaHtml(product)}
-                    ${showBadge ? `<span class="f-card__badge" data-discount="${discountPct}"><b class="f-card__badge-pct">${discountPct}%</b> ${this.escape(this.trans('product.sale'))}</span>` : ''}
-                    ${showHot ? `<span class="f-card__hot">🔥 ${this.escape(this.trans('product.hot'))}</span>` : ''}
+                    ${showBadge ? `<span class="f-card__marks">
+                        <span class="f-card__badge" data-discount="${discountPct}"><b class="f-card__badge-pct">${discountPct}%</b> ${this.escape(this.trans('product.sale'))}</span>
+                        ${showHot ? `<span class="f-card__hot">🔥 ${this.escape(this.trans('product.hot'))}</span>` : ''}
+                    </span>` : ''}
                     ${offerLabel ? `<span class="f-card__offer">${this.escape(offerLabel)}</span>` : ''}
                     ${showShip ? `<span class="f-card__ship">${this.escape(this.trans('product.free_shipping'))}</span>` : ''}
                 </a>
