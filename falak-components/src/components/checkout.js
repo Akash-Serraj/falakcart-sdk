@@ -52,7 +52,19 @@ export default class FalakCheckout extends FalakElement {
             error: '',
             shippingMethods: [],
             paymentMethods: [],
-            method: null,            // chosen shipping method (object)
+            needsShipping: true,     // false once the cart is read and no line in it ships
+            /*
+             * The contact step's own state (digital orders only). `verifiedPhone`
+             * is the number the account's flag or a fresh code vouches for; the
+             * step counts the phone as verified only while the field still
+             * holds that number. `otpPhone` is the number a code was sent to.
+             */
+            contact: {
+                loading: false, recognized: false,
+                verified: false, verifiedPhone: '',
+                otpStep: false, otpPhone: '', code: '', devCode: null,
+                sending: false, verifying: false, error: '',
+            },            method: null,            // chosen shipping method (object)
             countries: [],           // [{code, name}]
             cities: [],              // [{value, name}]
             districts: [],           // [{id, name, nationalAddress?}]
@@ -78,7 +90,31 @@ export default class FalakCheckout extends FalakElement {
         };
     }
 
-    get hasShipping() { return this.state.shippingMethods.length > 0; }
+    /*
+     * Whether this checkout has a delivery step at all. Two things can
+     * take it away: the store has no courier configured, or nothing in the
+     * cart ships — downloads, vouchers, services. The second is what the
+     * legacy storefront already did (its shipping block drops the address
+     * and courier steps for such a cart), and what the server expects:
+     * validateCheckoutRequest() makes the shipment fields optional exactly
+     * when no cart line is shippable. Before this read the cart, a basket
+     * of downloads was still asked for a street and a courier.
+     */
+    get hasShipping() { return this.state.needsShipping && this.state.shippingMethods.length > 0; }
+
+    /*
+     * Whether there is a first step before payment. Two shapes of it: the
+     * delivery step when the order ships, or the contact step when nothing
+     * does — a download still needs a name and an e-mail to be sent to, the
+     * way the legacy storefront's checkout asks for them. Only a cart that
+     * ships from a store with no courier configured has neither.
+     */
+    get hasStepOne() { return this.hasShipping || !this.state.needsShipping; }
+
+    /** Any line that ships means the order ships. An unread or empty cart is assumed to. */
+    static needsShipping(lines) {
+        return !Array.isArray(lines) || lines.length === 0 || lines.some(line => line.shippable !== false);
+    }
     get isCod() { return this.paymentMethod()?.code === 'cash_on_delivery'; }
 
     paymentMethod() {
@@ -140,14 +176,21 @@ export default class FalakCheckout extends FalakElement {
 
         this.syncForm();
 
+        // Steps are numbered 1 delivery, 2 payment, 3 review throughout; the
+        // bar counts only the ones this order has, so a download starts at
+        // "step 1 of 2" rather than "step 2 of 3" with nothing before it.
+        const stepsTotal = this.hasStepOne ? 3 : 2;
+        const stepShown = this.hasStepOne ? this.state.step : this.state.step - 1;
+
         this.innerHTML = `
-            ${this.state.loading ? '' : `<falak-progress-bar class="f-checkout__progress" value="${this.state.step}" max="3"
-                                 label="${this.escape(this.trans('checkout.step_progress', { step: this.state.step, total: 3 }))}"></falak-progress-bar>`}
+            ${this.state.loading ? '' : `<falak-progress-bar class="f-checkout__progress" value="${stepShown}" max="${stepsTotal}"
+                                 label="${this.escape(this.trans('checkout.step_progress', { step: stepShown, total: stepsTotal }))}"></falak-progress-bar>`}
             <div class="f-checkout__layout">
                 <main class="f-checkout__main">
                     ${this.customerHtml()}
                     ${this.state.loading ? `<div class="f-checkout__loading"><span class="f-modal__spinner" aria-hidden="true"></span></div>` : `
                         ${this.state.error ? `<p class="f-checkout__error" role="alert">${this.escape(this.state.error)}</p>` : ''}
+                        ${this.contactHtml()}
                         ${this.deliveryHtml()}
                         ${this.paymentHtml()}
                         ${this.reviewHtml()}`}
@@ -198,6 +241,226 @@ export default class FalakCheckout extends FalakElement {
     stepState(number) {
         if (this.state.step === number) return 'active';
         return this.state.step > number ? 'done' : 'todo';
+    }
+
+    /* ---- contact details, when nothing ships */
+
+    /*
+     * Step one for an order with no delivery — downloads, vouchers, services.
+     * It mirrors the legacy storefront's contact step, which is not a form
+     * with a decorative tick beside the phone but a small flow:
+     *
+     *   - on open, the store's checkout profile is read: the name, e-mail
+     *     and phone it already holds for this customer, gathered from their
+     *     earlier orders. Found details are filled in and announced
+     *     ("we found your details"), and the phone counts as verified when
+     *     the account's `is_otp_verified` flag says a sign-in code was once
+     *     accepted for it;
+     *   - the phone can be changed. The moment it no longer matches the
+     *     verified number the tick goes and a "send code" appears; the code
+     *     is checked by the checkout's own verify endpoint, which also hands
+     *     back whatever profile exists behind the new number;
+     *   - the step cannot be left with an unverified phone.
+     *
+     * Silent when the cart ships: the delivery step owns those fields then,
+     * and a store that merely has no courier keeps its payment-first opening.
+     */
+    contactHtml() {
+        if (this.state.needsShipping) return '';
+
+        const state = this.stepState(1);
+        const f = this.state.form;
+        const c = this.state.contact;
+        const verified = this.phoneVerified();
+        const summary = state === 'done'
+            ? `<p class="f-checkout__done-line">${this.escape(f.name)} · <span dir="ltr">${this.escape(f.phone)}</span>${f.email ? ` · <span dir="ltr">${this.escape(f.email)}</span>` : ''}</p>`
+            : '';
+
+        return `
+            <section class="f-checkout__step f-checkout__step--${state}" data-checkout-step="1" data-checkout-contact-step>
+                ${this.stepHead(1, this.trans('checkout.contact_title'), this.trans('checkout.contact_hint'), FalakCheckout.ICONS.user, state)}
+                ${summary}
+                ${state === 'active' ? `
+                <div class="f-checkout__body">
+                    ${c.recognized ? `<p class="f-checkout__recognized" data-checkout-recognized>${this.escape(this.trans('checkout.details_found'))}</p>` : ''}
+                    <form class="f-checkout__form" data-checkout-contact novalidate>
+                        <div class="f-checkout__grid">
+                            ${this.field('name', 'checkout.full_name', f.name, 'text', true)}
+                            <label class="f-field">
+                                <span class="f-field__label">${this.escape(this.trans('checkout.phone'))} *</span>
+                                <span class="f-checkout__phone-row">
+                                    <input class="f-input" type="tel" name="phone" value="${this.escape(f.phone || '')}" dir="ltr" required ${c.otpStep ? 'readonly' : ''} data-checkout-field="phone" data-checkout-phone>
+                                    <button type="button" class="f-btn f-btn--outline f-btn--light-outline f-btn--small" data-checkout-send-otp ${verified || c.otpStep ? 'hidden' : ''} ${c.sending || c.loading ? 'disabled' : ''}>${this.escape(this.trans('auth.verify'))}</button>
+                                </span>
+                                <small class="f-checkout__tag" data-checkout-phone-status ${verified ? '' : 'hidden'}>${this.escape(this.trans(c.recognized ? 'checkout.phone_verified_details' : 'checkout.phone_verified'))}</small>
+                                <small class="f-checkout__hint" data-checkout-phone-unverified ${verified || c.otpStep ? 'hidden' : ''}>${this.escape(this.trans('checkout.phone_unverified'))}</small>
+                            </label>
+                            ${c.otpStep ? `
+                            <div class="f-field f-field--wide f-checkout__otp">
+                                <span class="f-field__label">${this.escape(this.trans('auth.code'))}</span>
+                                <small class="f-checkout__hint">${this.escape(this.trans('auth.code_hint', { phone: c.otpPhone }))}</small>
+                                ${c.devCode ? `<small class="f-checkout__hint">${this.escape(this.trans('auth.dev_code', { code: c.devCode }))}</small>` : ''}
+                                <input class="f-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" dir="ltr" value="${this.escape(c.code)}" ${c.verifying ? 'disabled' : ''} data-checkout-otp>
+                                <span class="f-checkout__otp-actions">
+                                    <button type="button" class="f-btn f-btn--solid f-btn--primary f-btn--small" data-checkout-verify-otp ${c.verifying ? 'disabled' : ''}>${this.escape(this.trans('auth.verify'))}</button>
+                                    <button type="button" class="f-btn f-btn--outline f-btn--light-outline f-btn--small" data-checkout-send-otp ${c.sending ? 'disabled' : ''}>${this.escape(this.trans('auth.resend'))}</button>
+                                    <button type="button" class="f-btn f-btn--outline f-btn--light-outline f-btn--small" data-checkout-cancel-otp>${this.escape(this.trans('common.cancel'))}</button>
+                                </span>
+                            </div>` : ''}
+                            ${this.field('email', 'checkout.email', f.email, 'email', true, 'ltr', null, 'f-field--wide')}
+                        </div>
+                        <label class="f-field f-field--wide">
+                            <span class="f-field__label">${this.escape(this.trans('checkout.notes'))}</span>
+                            <textarea class="f-input" name="notes" rows="2" data-checkout-field="notes" placeholder="${this.escape(this.trans('checkout.notes_hint_digital'))}">${this.escape(f.notes)}</textarea>
+                        </label>
+                        <p class="f-checkout__error" role="alert" data-checkout-form-error ${c.error ? '' : 'hidden'}>${this.escape(c.error)}</p>
+                        <button type="submit" class="f-btn f-btn--solid f-btn--primary f-btn--wide">${this.escape(this.trans('checkout.continue_to_payment'))}</button>
+                    </form>
+                </div>` : ''}
+            </section>`;
+    }
+
+    /* Verified means: the flag or a code vouched for a number, AND the field
+       still holds that number. Editing the phone withdraws it at once. */
+    phoneVerified() {
+        const c = this.state.contact;
+        return c.verified && FalakCheckout.phonesMatch(this.state.form.phone, c.verifiedPhone);
+    }
+
+    /* Same comparison the legacy storefront uses: digits only, and a number
+       typed without its country code matches the stored one on its last
+       nine or more digits. */
+    static phoneDigits(value) {
+        let digits = String(value || '').replace(/\D/g, '');
+        if (digits.startsWith('00')) digits = digits.slice(2);
+        return digits;
+    }
+
+    static phonesMatch(left, right) {
+        const a = FalakCheckout.phoneDigits(left);
+        const b = FalakCheckout.phoneDigits(right);
+        if (!a || !b) return false;
+        if (a === b) return true;
+        const shorter = a.length <= b.length ? a : b;
+        const longer = a.length > b.length ? a : b;
+        return shorter.length >= 9 && longer.endsWith(shorter);
+    }
+
+    /* The saved profile over the form. `overwrite` is the legacy rule: a
+       recognized customer's stored details replace the account defaults; an
+       unrecognized lookup only fills what is still blank. */
+    applyContactProfile(response, overwrite) {
+        const p = response?.profile || {};
+        const f = this.state.form;
+        for (const key of ['name', 'email', 'phone']) {
+            const value = typeof p[key] === 'string' ? p[key].trim() : '';
+            if (!value || !(overwrite || !String(f[key] || '').trim())) continue;
+            f[key] = value;
+            /* Into the live input as well: render() re-reads the on-screen fields
+               into state first (syncForm), so a value set on state alone would
+               be undone by the very render meant to show it. */
+            const input = this.querySelector('[data-checkout-field="' + key + '"]');
+            if (input) input.value = value;
+        }
+    }
+
+    async loadContactProfile() {
+        const c = this.state.contact;
+        if (c.loading) return;
+        c.loading = true;
+        this.render();
+
+        try {
+            const response = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.customerProfile());
+            c.recognized = !!response?.recognized;
+            this.applyContactProfile(response, c.recognized);
+            if (response?.phone_verified) {
+                c.verified = true;
+                c.verifiedPhone = response.profile?.phone || this.state.form.phone || '';
+            }
+        } catch (error) {
+            /* The form stays usable with the account's own details; a code can
+               still verify the number by hand. */
+        } finally {
+            c.loading = false;
+            this.render();
+        }
+    }
+
+    /* Typing in the phone field: no re-render (it would drop the caret), the
+       tick, the warning and the send button are patched in place. A number
+       changed while a code is pending abandons that code. */
+    onPhoneInput(input) {
+        const c = this.state.contact;
+        this.state.form.phone = input.value;
+
+        if (c.otpStep && !FalakCheckout.phonesMatch(input.value, c.otpPhone)) {
+            c.otpStep = false; c.code = ''; c.devCode = null;
+            this.render();
+            this.querySelector('[data-checkout-phone]')?.focus();
+            return;
+        }
+
+        const verified = this.phoneVerified();
+        const status = this.querySelector('[data-checkout-phone-status]');
+        const warning = this.querySelector('[data-checkout-phone-unverified]');
+        const send = this.querySelector('.f-checkout__phone-row [data-checkout-send-otp]');
+        if (status) status.hidden = !verified;
+        if (warning) warning.hidden = verified || c.otpStep;
+        if (send) send.hidden = verified || c.otpStep;
+    }
+
+    async sendPhoneOtp() {
+        this.syncForm();
+        const c = this.state.contact;
+        const phone = String(this.state.form.phone || '').trim();
+        c.error = '';
+        if (!phone) { c.error = this.trans('auth.phone_required'); this.render(); return; }
+        // Nine digits is the shortest national number the store ships to; anything
+        // shorter is a typo, and the legacy step refuses it before sending too.
+        if (FalakCheckout.phoneDigits(phone).length < 9) { c.error = this.trans('checkout.phone_invalid'); this.render(); return; }
+        if (c.sending) return;
+
+        c.sending = true;
+        this.render();
+        try {
+            const response = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.sendPhoneOtp(phone));
+            c.otpStep = true;
+            c.otpPhone = phone;
+            c.devCode = response?.otp_delivery === 'direct' && response?.otp ? String(response.otp) : null;
+            c.code = c.devCode || '';
+        } catch (error) {
+            c.error = error?.message || this.trans('common.load_failed');
+        } finally {
+            c.sending = false;
+            this.render();
+            this.querySelector('[data-checkout-otp]')?.focus();
+        }
+    }
+
+    async verifyPhoneOtp() {
+        const c = this.state.contact;
+        c.code = String(this.querySelector('[data-checkout-otp]')?.value ?? c.code).replace(/\D/g, '').slice(0, 6);
+        c.error = '';
+        if (!/^\d{6}$/.test(c.code)) { c.error = this.trans('auth.code_invalid'); this.render(); return; }
+        if (c.verifying) return;
+
+        c.verifying = true;
+        this.render();
+        try {
+            const response = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.verifyPhoneOtp(c.otpPhone, c.code));
+            c.recognized = !!response?.recognized;
+            this.applyContactProfile(response, c.recognized);
+            c.verified = true;
+            c.verifiedPhone = response?.profile?.phone || c.otpPhone;
+            this.state.form.phone = c.verifiedPhone;
+            c.otpStep = false; c.otpPhone = ''; c.code = ''; c.devCode = null;
+        } catch (error) {
+            c.error = error?.message || this.trans('auth.code_invalid');
+        } finally {
+            c.verifying = false;
+            this.render();
+        }
     }
 
     /* ---- delivery */
@@ -386,15 +649,16 @@ export default class FalakCheckout extends FalakElement {
             <section class="f-checkout__step f-checkout__step--active" data-checkout-step="3">
                 ${this.stepHead(3, this.trans('checkout.review_title'), this.trans('checkout.review_hint'), FalakCheckout.ICONS.check, 'active')}
                 <div class="f-checkout__body">
-                    ${this.hasShipping ? `
                     <dl class="f-checkout__review">
+                        ${this.hasShipping ? `
                         <div><dt>${this.escape(this.trans('checkout.deliver_to'))}</dt><dd>${this.escape(f.name)} · <span dir="ltr">${this.escape(f.phone)}</span><br>${this.escape([f.street, f.districtName, f.cityName || f.city, this.countryName(f.country)].filter(Boolean).join(', '))}</dd></div>
-                        <div><dt>${this.escape(this.trans('checkout.shipping_method'))}</dt><dd>${this.escape(this.state.method?.name || '')}</dd></div>
+                        <div><dt>${this.escape(this.trans('checkout.shipping_method'))}</dt><dd>${this.escape(this.state.method?.name || '')}</dd></div>` : (!this.state.needsShipping ? `
+                        <div><dt>${this.escape(this.trans('checkout.customer_details'))}</dt><dd>${this.escape(f.name)} · <span dir="ltr">${this.escape(f.phone)}</span>${f.email ? `<br><span dir="ltr">${this.escape(f.email)}</span>` : ''}</dd></div>` : '')}
                         <div><dt>${this.escape(this.trans('checkout.payment_method'))}</dt><dd>${this.escape(this.paymentMethod()?.name || '')}</dd></div>
-                    </dl>` : ''}
+                    </dl>
                     ${this.state.calculating || !t
                         ? `<div class="f-checkout__loading"><span class="f-modal__spinner" aria-hidden="true"></span></div>`
-                        : `<p class="f-checkout__total-line">${this.escape(this.trans('checkout.total_to_pay'))} <b>${this.escape(this.money(t.total, t.currency))}</b></p>
+                        : `<p class="f-checkout__total-line">${this.escape(this.trans('checkout.total_to_pay'))} <b>${this.escape(this.money(t.total))}</b></p>
                            ${this.chargeNote(this.paymentMethod())}
                            <button type="button" class="f-btn f-btn--solid f-btn--primary f-btn--wide f-btn--large" data-checkout-place ${this.state.placing ? 'disabled' : ''}>
                                ${this.state.placing ? '<span class="f-btn__loader" aria-hidden="true"></span>' : ''}
@@ -404,17 +668,25 @@ export default class FalakCheckout extends FalakElement {
             </section>`;
     }
 
-    /* ---- summary column */
+    /*
+     * ---- summary column
+     *
+     * Every amount here — the cart lines and the API totals alike — is in
+     * the store's base currency, which is the one thing the storefront
+     * guarantees about a money field. money() with no code converts it to
+     * whatever the shopper is reading at the rate the page was rendered
+     * with; handing it the server's own `currency` instead meant a single
+     * stale field could print a base figure under a foreign sign.
+     */
 
     summaryHtml() {
         const lines = this.sdk.cart.lines || [];
         const t = this.state.totals;
-        const currency = t?.currency;
 
         const row = (key, amount, cls = '', hint = null) => `
             <div class="f-checkout__row ${cls}">
                 <span>${this.escape(this.trans(key))}${hint ? `<falak-tooltip text="${this.escape(hint)}"><button type="button" class="f-checkout__info-btn" aria-label="${this.escape(this.trans('common.more_info'))}">${FalakCheckout.ICONS.info}</button></falak-tooltip>` : ''}</span>
-                <span>${this.escape(this.money(amount, currency))}</span>
+                <span>${this.escape(this.money(amount))}</span>
             </div>`;
 
         return `
@@ -425,7 +697,7 @@ export default class FalakCheckout extends FalakElement {
                         <li class="f-checkout__line">
                             <span class="f-checkout__line-media">${l.image ? `<img src="${this.escape(l.image)}" alt="">` : ''}<b class="f-checkout__line-qty">${l.quantity}</b></span>
                             <span class="f-checkout__line-text"><span class="f-checkout__line-name">${this.escape(l.name)}</span>${this.lineOptions(l) ? `<small>${this.escape(this.lineOptions(l))}</small>` : ''}</span>
-                            <span class="f-checkout__line-total">${this.escape(this.money(l.total, currency))}</span>
+                            <span class="f-checkout__line-total">${this.escape(this.money(l.total))}</span>
                         </li>`).join('')}
                 </ul>
                 <falak-cart-coupons class="f-checkout__coupon"></falak-cart-coupons>
@@ -455,7 +727,7 @@ export default class FalakCheckout extends FalakElement {
         return `${row('cart.subtotal', subtotal)}
             ${this.creditRows(row, { product: s.product_discount, coupon: s.coupon_discount, offer: s.special_offer_discount })}
             ${discount > 0 ? row('checkout.total', Number(s.total ?? (subtotal - discount)), 'f-checkout__row--total') : ''}
-            <p class="f-checkout__hint">${this.escape(this.trans('checkout.totals_after_address'))}</p>`;
+            ${this.hasShipping ? `<p class="f-checkout__hint">${this.escape(this.trans('checkout.totals_after_address'))}</p>` : ''}`;
     }
 
     /**
@@ -485,7 +757,7 @@ export default class FalakCheckout extends FalakElement {
         this._offs = [
             this.sdk.event.on('auth::logged.in', () => { this.state = null; this.render(); this.load(); }),
             this.sdk.event.on('auth::logged.out', () => { this.state = null; this.render(); }),
-            this.sdk.event.on('cart::updated', () => this.refreshTotals()),
+            this.sdk.event.on('cart::updated', () => this.cartChanged()),
             this.sdk.event.on('cart::coupon.applied', () => this.refreshTotals()),
             this.sdk.event.on('cart::coupon.removed', () => this.refreshTotals()),
         ];
@@ -496,7 +768,16 @@ export default class FalakCheckout extends FalakElement {
             const goto = t.closest('[data-checkout-goto]');
             if (goto) { this.setStep(Number(goto.getAttribute('data-checkout-goto'))); return; }
             if (t.closest('[data-checkout-review]')) { this.goReview(); return; }
+            if (t.closest('[data-checkout-send-otp]')) { this.sendPhoneOtp(); return; }
+            if (t.closest('[data-checkout-verify-otp]')) { this.verifyPhoneOtp(); return; }
+            if (t.closest('[data-checkout-cancel-otp]')) { Object.assign(this.state.contact, { otpStep: false, otpPhone: '', code: '', devCode: null, error: '' }); this.render(); return; }
             if (t.closest('[data-checkout-place]')) { this.place(); }
+        });
+
+        this.listen(this, 'input', event => {
+            const t = event.target;
+            if (t.matches('[data-checkout-phone]')) { this.onPhoneInput(t); return; }
+            if (t.matches('[data-checkout-otp]')) { this.state.contact.code = t.value.replace(/\D/g, '').slice(0, 6); }
         });
 
         this.listen(this, 'change', event => {
@@ -509,6 +790,7 @@ export default class FalakCheckout extends FalakElement {
         });
 
         this.listen(this, 'submit', event => {
+            if (event.target.matches('[data-checkout-contact]')) { event.preventDefault(); this.submitContact(event.target); return; }
             if (!event.target.matches('[data-checkout-address]')) return;
             event.preventDefault();
             this.submitAddress(event.target);
@@ -535,7 +817,7 @@ export default class FalakCheckout extends FalakElement {
         this.render();
 
         try {
-            const [shipping, payments] = await Promise.all([
+            const [shipping, payments, lines] = await Promise.all([
                 this.sdk.api.withoutNotifier(() => this.sdk.checkout.shipmentGateways()),
                 this.sdk.api.withoutNotifier(() => this.sdk.checkout.paymentGateways()),
                 this.sdk.cart.items(),
@@ -543,9 +825,12 @@ export default class FalakCheckout extends FalakElement {
 
             this.state.shippingMethods = shipping;
             this.state.paymentMethods = payments;
+            this.state.needsShipping = FalakCheckout.needsShipping(lines);
             this.state.loading = false;
 
-            if (!this.hasShipping) this.state.step = 2;
+            if (!this.state.needsShipping) this.loadContactProfile();
+
+            if (!this.hasStepOne) this.state.step = 2;
             if (this.state.shippingMethods.length === 1) await this.chooseMethod(`${shipping[0].shipment_type}:${shipping[0].id}`, false);
 
             if (!this.state.payment) this.state.payment = this.eligiblePaymentMethods()[0]?.id ?? null;
@@ -679,6 +964,38 @@ export default class FalakCheckout extends FalakElement {
         this.render();
     }
 
+    /* A name to address the order to, an e-mail to send it to, and a phone a
+       code has vouched for. A malformed e-mail is caught here rather than by
+       the server, which would answer after the payment step. */
+    submitContact(form) {
+        this.syncForm();
+        const f = this.state.form;
+        const c = this.state.contact;
+        const error = form.querySelector('[data-checkout-form-error]');
+        const missing = [];
+
+        if (!f.name.trim()) missing.push(this.trans('checkout.full_name'));
+        if (!f.phone.trim()) missing.push(this.trans('checkout.phone'));
+        if (!f.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) missing.push(this.trans('checkout.email'));
+
+        if (missing.length) {
+            error.textContent = this.trans('checkout.fill_required', { fields: missing.join(', ') });
+            error.hidden = false;
+            form.querySelector(':invalid, [required]:placeholder-shown')?.focus();
+            return;
+        }
+
+        if (!this.phoneVerified()) {
+            error.textContent = this.trans('checkout.phone_verify_required');
+            error.hidden = false;
+            (form.querySelector('[data-checkout-otp]') || form.querySelector('[data-checkout-send-otp]:not([hidden])') || form.querySelector('[data-checkout-phone]'))?.focus();
+            return;
+        }
+
+        c.error = '';
+        error.hidden = true;
+        this.setStep(2);
+    }
     submitAddress(form) {
         this.syncForm();
         const f = this.state.form;
@@ -740,6 +1057,22 @@ export default class FalakCheckout extends FalakElement {
         await this.refreshTotals();
     }
 
+    /*
+     * The cart changed under the checkout — a line removed in another tab,
+     * an offer that added a free item. Whether anything still ships decides
+     * whether the delivery step exists, so that is re-read before the totals
+     * are; a shopper left on a delivery step for a cart that no longer ships
+     * is moved on to payment.
+     */
+    cartChanged() {
+        if (!this.state) return;
+
+        this.state.needsShipping = FalakCheckout.needsShipping(this.sdk.cart.lines || []);
+        if (!this.hasStepOne && this.state.step === 1) this.state.step = 2;
+        this.render();
+        this.refreshTotals();
+    }
+
     async refreshTotals() {
         if (!this.state || this.state.step !== 3 || !this.sdk.auth.isLoggedIn()) return;
 
@@ -755,7 +1088,7 @@ export default class FalakCheckout extends FalakElement {
         } catch (error) {
             this.state.totals = null;
             this.state.error = error?.message || this.trans('common.load_failed');
-            this.state.step = this.hasShipping ? 1 : 2;
+            this.state.step = this.hasStepOne ? 1 : 2;
         } finally {
             this.state.calculating = false;
             this.render();

@@ -57,6 +57,13 @@ export default class CheckoutApi extends BaseApi {
             reviewOrder: '/api/customer/orders/{order}/review',
             confirmDelivery: '/api/customer/orders/{order}/confirm-delivery',
             cancelOrder: '/api/customer/orders/{id}/cancel',
+
+            // The contact step of an order that ships nothing: the profile the
+            // store already holds behind the account's phone, and re-verifying
+            // a number the shopper changes there.
+            customerProfile: '/api/customer/checkout/customer-profile',
+            sendPhoneOtp: '/api/customer/checkout/phone/send-otp',
+            verifyPhoneOtp: '/api/customer/checkout/phone/verify-otp',
             trackShipment: '/api/customer/shipments/track',
         };
 
@@ -65,6 +72,7 @@ export default class CheckoutApi extends BaseApi {
             districts: 'get', calculateTotal: 'post', checkout: 'post', callback: 'get', retryPayment: 'post', order: 'get', orders: 'get',
             invoice: 'get', downloads: 'get', downloadFile: 'get', returnEligibility: 'get', returnRequest: 'post',
             returnRequests: 'get', reviewOrder: 'post', confirmDelivery: 'post', cancelOrder: 'delete', trackShipment: 'get',
+            customerProfile: 'get', sendPhoneOtp: 'post', verifyPhoneOtp: 'post',
         };
     }
 
@@ -197,6 +205,28 @@ export default class CheckoutApi extends BaseApi {
      */
     async orderDetails(orderNumber) {
         return this.call(['order', orderNumber]);
+    }
+
+    /*
+     * What the store knows about the signed-in customer for a checkout
+     * without an address step: `profile` (name, e-mail, phone, address
+     * gathered from earlier orders, across the merchant's stores),
+     * `recognized` when any of that was found, and `phone_verified` — the
+     * account's flag, set when a sign-in code was accepted for its number.
+     */
+    async customerProfile() {
+        return this.call('customerProfile');
+    }
+
+    /* A code to a number typed on the contact step. Answers `otp_delivery`
+       ('sms' | 'direct') and, when direct, the `otp` itself. */
+    async sendPhoneOtp(phone) {
+        return this.call('sendPhoneOtp', { body: { phone: String(phone || '').trim() } });
+    }
+
+    /* Same answer shape as customerProfile(), for the number just verified. */
+    async verifyPhoneOtp(phone, otp) {
+        return this.call('verifyPhoneOtp', { body: { phone: String(phone || '').trim(), otp: String(otp || '').trim() } });
     }
 
     async orders(query = {}) {

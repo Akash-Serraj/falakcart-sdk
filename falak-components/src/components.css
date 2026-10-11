@@ -327,6 +327,38 @@ falak-rating-stars[data-busy] { opacity: 0.5; }
     font-weight: 700;
 }
 
+/* The percentage inside the sale badge, and the two marks the legacy card
+   also carries: "hot" under the sale badge from 30% off, and the
+   merchant's free-shipping promise in the bottom corner. Each has its own
+   corner or offset so a product carrying all of them stacks nothing. */
+.f-card__badge-pct { font-size: 0.85rem; font-weight: 800; margin-inline-end: 0.15rem; }
+.f-card__hot {
+    position: absolute;
+    inset-block-start: 2.1rem;
+    inset-inline-start: 0.5rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.25rem;
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+.f-card__ship {
+    position: absolute;
+    inset-block-end: 0.5rem;
+    inset-inline-end: 0.5rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.25rem;
+    background: var(--f-success, #059669);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    line-height: 1.5;
+}
+
 /*
  * The special-offer ribbon. Opposite corner to .f-card__badge, because a
  * discounted product that is ALSO in an offer carries both and they must not
@@ -648,6 +680,25 @@ falak-rating-stars[data-busy] { opacity: 0.5; }
    ======================================================================== */
 
 .f-cart-coupons { display: block; }
+
+/* <falak-cart-offers>: the cart page's offer tracker. One card per offer the
+   cart is measured against — unlocked ones tinted and ticked, locked ones
+   neutral with a progress bar. */
+.f-cart-offers { display: block; margin-block-end: 1rem; }
+.f-offer-track { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.f-offer-track__card { border: 1.5px solid var(--f-border); border-radius: calc(var(--f-radius) * 1.4); background: var(--f-surface); padding: 0.8rem 0.9rem; transition: border-color 0.3s ease, background-color 0.3s ease; }
+.f-offer-track__card.is-unlocked { border-color: color-mix(in srgb, var(--f-success, #16a34a) 35%, transparent); background: color-mix(in srgb, var(--f-success, #16a34a) 7%, var(--f-surface)); }
+.f-offer-track__top { display: flex; align-items: center; gap: 0.65rem; }
+.f-offer-track__icon { flex: none; display: inline-flex; align-items: center; justify-content: center; inline-size: 2.25rem; block-size: 2.25rem; border-radius: 0.65rem; background: color-mix(in srgb, var(--color-primary, #1d9e75) 12%, transparent); color: var(--color-primary, #1d9e75); }
+.f-offer-track__card.is-unlocked .f-offer-track__icon { background: color-mix(in srgb, var(--f-success, #16a34a) 14%, transparent); color: var(--f-success, #16a34a); }
+.f-offer-track__text { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.f-offer-track__title { font-size: 0.9rem; font-weight: 700; color: var(--f-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f-offer-track__sub { font-size: 0.8rem; color: var(--f-text-soft); }
+.f-offer-track__card.is-unlocked .f-offer-track__sub { color: var(--f-success, #16a34a); font-weight: 600; }
+.f-offer-track__state { flex: none; display: inline-flex; color: var(--f-text-faint); }
+.f-offer-track__card.is-unlocked .f-offer-track__state { color: var(--f-success, #16a34a); }
+.f-offer-track__bar { margin-block-start: 0.6rem; block-size: 6px; border-radius: 999px; background: color-mix(in srgb, var(--f-text) 8%, transparent); overflow: hidden; }
+.f-offer-track__fill { display: block; block-size: 100%; border-radius: inherit; background: var(--color-primary, #1d9e75); transition: inline-size 0.4s ease; }
 .f-cart-coupons[hidden] { display: none; }
 .f-cart-coupons__label { display: block; margin-block-end: 0.4rem; font-size: 0.85rem; font-weight: 600; color: var(--f-text); }
 .f-cart-coupons__row { display: flex; gap: 0.5rem; }
@@ -1150,6 +1201,15 @@ body.f-drawer-open { overflow: hidden; }
 .f-checkout__done-line { margin: 0.5rem 0 0 3.35rem; font-size: 0.9rem; color: var(--f-text-soft); }
 .f-checkout__body { display: flex; flex-direction: column; gap: 1rem; margin-block-start: 1rem; }
 .f-checkout__hint { margin: 0; font-size: 0.85rem; color: var(--f-text-soft); }
+/* The contact step of a digital order: phone + send-code side by side, the
+   code row beneath, and the "we found your details" note. */
+.f-checkout__phone-row { display: flex; gap: 0.5rem; align-items: stretch; }
+.f-checkout__phone-row .f-input { flex: 1 1 auto; min-inline-size: 0; }
+.f-checkout__phone-row .f-btn { flex: none; white-space: nowrap; }
+.f-checkout__recognized { margin: 0; padding: 0.6rem 0.8rem; border-radius: var(--f-radius); background: color-mix(in srgb, var(--color-primary, #1d9e75) 10%, transparent); color: var(--f-text); font-size: 0.88rem; }
+.f-checkout__otp { gap: 0.5rem; }
+.f-checkout__otp-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.f-checkout [hidden] { display: none !important; }
 .f-checkout__error { margin: 0; padding: 0.6rem 0.8rem; border-radius: var(--f-radius); background: color-mix(in srgb, var(--f-danger) 10%, transparent); color: var(--f-danger); font-size: 0.88rem; }
 .f-checkout__loading { display: flex; justify-content: center; padding: 2rem; }
 
@@ -1210,7 +1270,10 @@ body.f-drawer-open { overflow: hidden; }
 .f-checkout__lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; max-block-size: 18rem; overflow-y: auto; }
 .f-checkout__line { display: flex; align-items: center; gap: 0.7rem; }
 .f-checkout__line-media { position: relative; flex: none; inline-size: 3.25rem; block-size: 3.25rem; border-radius: var(--f-radius); overflow: visible; background: rgba(0, 0, 0, 0.05); }
-.f-checkout__line-media img { inline-size: 100%; block-size: 100%; object-fit: cover; border-radius: var(--f-radius); }
+/* display: block — an inline img sits on the text baseline and adds descender
+   space below itself, so the list overflowed its box by ~8px and grew a
+   scrollbar even when every line fit. */
+.f-checkout__line-media img { display: block; inline-size: 100%; block-size: 100%; object-fit: cover; border-radius: var(--f-radius); }
 .f-checkout__line-qty { position: absolute; inset-block-start: -0.35rem; inset-inline-end: -0.35rem; min-inline-size: 1.2rem; block-size: 1.2rem; padding-inline: 0.3rem; border-radius: 999px; background: var(--f-text); color: var(--f-surface); font-size: 0.68rem; line-height: 1.2rem; text-align: center; }
 .f-checkout__line-text { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-direction: column; font-size: 0.85rem; }
 .f-checkout__line-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
