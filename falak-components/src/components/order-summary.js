@@ -10,8 +10,8 @@ import { openDialog, closeDialog, dialogBody, setDialogError, setDialogBusy, ope
  * unpaid; the progress stepper; the products with their tags and per-product
  * rating; digital downloads; the review the customer left; the payment
  * details and totals; and a sidebar with the shipping address, the carrier
- * tracking (locked until paid), the actions (pay, return, rate, cancel,
- * confirm delivery) and the order info.
+ * tracking (locked until paid), the actions (pay, return, rate, confirm
+ * delivery) and the order info.
  *
  * Two sources, used together when both are present:
  *   - `order` — the server-rendered order (the storefront's page data),
@@ -32,7 +32,7 @@ import { openDialog, closeDialog, dialogBody, setDialogError, setDialogBusy, ope
  * | hide-actions | hide-downloads | hide-tracking | hide-info | hide-invoice |
  *
  * Events: DOM `loaded` (detail: order) on the element; bus
- * `order::updated` after an action changed the order (cancel, review, …).
+ * `order::updated` after an action changed the order (return, review, …).
  */
 export default class FalakOrderSummary extends FalakElement {
     static observedAttributes = ['order-number', 'order', 'compact', 'hide-items', 'hide-timeline', 'hide-address', 'hide-totals', 'hide-header'];
@@ -79,7 +79,6 @@ export default class FalakOrderSummary extends FalakElement {
             hasReturnableItems: (order.items || []).some(item => item.is_returnable !== false && !['digital', 'voucher'].includes(String(item.product_type || '').toLowerCase())),
             hasSubmittedReview: !!order.reviewed_at && (order.review_rating != null || !!order.review_comment),
             isReviewable: FalakOrderSummary.REVIEWABLE_STATUSES.includes(status),
-            canCancel: order.can_cancel === true,
             canConfirmDelivery: status === 'out_for_delivery',
             returnRequest: (order.return_requests || [])[0] || null,
         };
@@ -557,6 +556,11 @@ export default class FalakOrderSummary extends FalakElement {
 
     addressHtml(order) {
         const address = order.address || {};
+
+        // An order with nothing to ship is saved with a placeholder address
+        // ({type: 'digital_order'}); a card titled "shipping address" holding
+        // only the billing e-mail would be a question, not an answer.
+        if (address.type === 'digital_order') return '';
         const line = [address.address, address.district].filter(Boolean).join(', ');
         const city = [address.city, address.country, address.postal_code].filter(Boolean).join(', ');
 
@@ -647,9 +651,18 @@ export default class FalakOrderSummary extends FalakElement {
             buttons.push(`<button type="button" class="f-btn f-btn--primary f-btn--wide" data-order-rate>${FalakOrderSummary.icon('star')} ${this.escape(this.trans('account.rate_order'))}</button>`);
         }
 
-        if (f.canCancel && order.id) {
-            buttons.push(`<button type="button" class="f-btn f-btn--light-outline f-btn--wide f-order__cancel" data-order-cancel>${FalakOrderSummary.icon('x-circle')} ${this.escape(this.trans('account.cancel_order'))}</button>`);
-        }
+        /*
+         * No cancel button, deliberately. Cancelling an order is the
+         * merchant's decision: a shopper who wants one out asks, and the
+         * store acts on it. The request the customer CAN raise here is the
+         * return above, which a merchant approves or rejects from the order
+         * requests queue — a self-service cancel had no such gate and took
+         * the order away from under a store that may already have picked
+         * and packed it.
+         *
+         * `can_cancel` still travels on the order record for anything that
+         * wants to reason about it; nothing in this component renders it.
+         */
 
         if (!buttons.length) return '';
 
@@ -692,7 +705,6 @@ export default class FalakOrderSummary extends FalakElement {
         if (hit('[data-order-return]')) { this.openReturnDialog(); return; }
         if (hit('[data-order-rate]')) { this.openRateOrderDialog(); return; }
         if (hit('[data-order-track]')) { this.openTrackingDialog(); return; }
-        if (hit('[data-order-cancel]')) { this.cancelOrder(); return; }
         if (hit('[data-order-confirm-delivery]')) { this.confirmDelivery(); return; }
 
         const rate = hit('[data-order-rate-product]');
@@ -721,17 +733,6 @@ export default class FalakOrderSummary extends FalakElement {
             this._downloads = Array.isArray(response?.downloads) ? response.downloads : this._downloads;
         } catch (error) { /* keep what we had */ }
         this.render();
-    }
-
-    async cancelOrder() {
-        const order = this._order;
-        if (!order?.id) return;
-        if (!window.confirm(this.trans('account.cancel_order_confirm'))) return;
-
-        try {
-            await this.sdk.checkout.cancelOrder(order.id);
-            await this.refresh();
-        } catch (error) { /* toasted by the client */ }
     }
 
     async confirmDelivery() {
@@ -880,10 +881,10 @@ export default class FalakOrderSummary extends FalakElement {
             await this.sdk.api.withoutNotifier(() => this.sdk.review.add(productId, { rating, comment, orderId: order.id }));
             this.closeDialog();
             this.sdk.notify.success(this.trans('account.review_submitted'));
-            try {
-                this._reviewable = await this.sdk.api.withoutNotifier(() => this.sdk.review.reviewableItems(order.number));
-            } catch (error) { /* keep */ }
-            this.render();
+            // The whole order, not only the reviewable list: a product review can
+            // move the order on (Order::advanceAfterProductReview), and the
+            // progress bar and status pill must show that without a reload.
+            await this.refresh();
         });
     }
 

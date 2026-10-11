@@ -334,11 +334,13 @@ export default class FalakMiniCheckout extends FalakElement {
             </section>`;
     }
 
-    totalRow(key, amount, currency, cls = '') {
+    /* Amounts come from the totals endpoint, which answers in the store's
+       base currency; money() turns that into the shopper's. */
+    totalRow(key, amount, cls = '') {
         return `
             <div class="f-checkout__row ${cls}">
                 <span>${this.escape(this.trans(key))}</span>
-                <span>${this.escape(this.money(amount, currency))}</span>
+                <span>${this.escape(this.money(amount))}</span>
             </div>`;
     }
 
@@ -354,11 +356,11 @@ export default class FalakMiniCheckout extends FalakElement {
                     ? `<div class="f-checkout__loading"><span class="f-modal__spinner" aria-hidden="true"></span></div>`
                     : `
                     <div class="f-checkout__totals">
-                        ${this.totalRow('cart.subtotal', t.subtotal, t.currency)}
-                        ${t.shipping_cost > 0 ? this.totalRow('checkout.shipping', t.shipping_cost, t.currency) : ''}
-                        ${t.cod_fee > 0 ? this.totalRow('checkout.cod_fee', t.cod_fee, t.currency) : ''}
-                        ${t.tax_amount > 0 ? this.totalRow('checkout.tax', t.tax_amount, t.currency) : ''}
-                        ${this.totalRow('checkout.total', t.total, t.currency, 'f-checkout__row--total')}
+                        ${this.totalRow('cart.subtotal', t.subtotal)}
+                        ${t.shipping_cost > 0 ? this.totalRow('checkout.shipping', t.shipping_cost) : ''}
+                        ${t.cod_fee > 0 ? this.totalRow('checkout.cod_fee', t.cod_fee) : ''}
+                        ${t.tax_amount > 0 ? this.totalRow('checkout.tax', t.tax_amount) : ''}
+                        ${this.totalRow('checkout.total', t.total, 'f-checkout__row--total')}
                     </div>
                     <button type="button" class="f-btn f-btn--solid f-btn--primary f-btn--wide f-btn--large" data-mini-checkout-place ${this.state.placing ? 'disabled' : ''}>
                         ${this.state.placing ? '<span class="f-btn__loader" aria-hidden="true"></span>' : ''}

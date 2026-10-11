@@ -150,6 +150,9 @@ export default class FalakProductCard extends FalakElement {
             price: onSale ? wasPrice : price,
             compareAt: onSale ? price : null,
             currency: product.currency || null,
+            // The merchant's "ships free" flag on the product itself, as the legacy
+            // card reads it. Tolerant of the 1 / "1" an older row serializes.
+            freeShipping: product.free_shipment === true || product.free_shipment === 1 || product.free_shipment === '1',
             /*
              * `in_stock` / `has_variations` are the platform's own resolved
              * answers, sent by the server-rendered product shape a theme gets
@@ -370,6 +373,13 @@ export default class FalakProductCard extends FalakElement {
 
         // Minimal and full-image strip the extras; the essentials remain.
         const showBadge = product.compareAt && !this.isMinimal && !this.isFullImage;
+        // The saving as a whole percentage, the way the legacy card prints it
+        // ("50% SALE"); 30% and up also earns its "hot" mark.
+        const discountPct = showBadge ? Math.round(((product.compareAt - product.price) / product.compareAt) * 100) : 0;
+        const showHot = showBadge && discountPct >= 30;
+        // Free shipping is the product's own promise, so it shows on every
+        // variant with room for a mark — the minimal card has none.
+        const showShip = product.freeShipping && !this.isMinimal;
         const showRating = product.rating !== null && !this.isMinimal && !this.isFullImage;
         const showStock = !product.inStock && !this.isMinimal;
 
@@ -394,8 +404,10 @@ export default class FalakProductCard extends FalakElement {
             <article class="f-card__inner">
                 <a class="f-card__media" href="${this.escape(product.url)}" tabindex="-1" aria-hidden="true">
                     ${this.mediaHtml(product)}
-                    ${showBadge ? `<span class="f-card__badge" data-discount="${Math.round(((product.compareAt - product.price) / product.compareAt) * 100)}">${this.escape(this.trans('product.sale'))}</span>` : ''}
+                    ${showBadge ? `<span class="f-card__badge" data-discount="${discountPct}"><b class="f-card__badge-pct">${discountPct}%</b> ${this.escape(this.trans('product.sale'))}</span>` : ''}
+                    ${showHot ? `<span class="f-card__hot">🔥 ${this.escape(this.trans('product.hot'))}</span>` : ''}
                     ${offerLabel ? `<span class="f-card__offer">${this.escape(offerLabel)}</span>` : ''}
+                    ${showShip ? `<span class="f-card__ship">${this.escape(this.trans('product.free_shipping'))}</span>` : ''}
                 </a>
 
                 <div class="f-card__body">

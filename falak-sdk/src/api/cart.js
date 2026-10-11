@@ -337,6 +337,22 @@ export default class CartApi extends BaseApi {
                 total: Number(line.total_price || 0),
                 discount: Number(line.discount_amount || 0),
                 stock: product.quantity ?? null,
+                productType: product.product_type ?? null,
+                /*
+                 * Whether this line needs a courier — the rule the server applies
+                 * when it decides if an order must carry a shipment at all
+                 * (OrderController::isItemShippableForCharges): a product the
+                 * merchant marked non-shippable (a download, a voucher, a
+                 * service) ships nothing, and so does an M5azn digital row
+                 * whatever its flag says. The flag is read the way the legacy
+                 * storefront read it, tolerating 0 / "0" / "false" from an older
+                 * row. <falak-checkout> drops its whole delivery step when no
+                 * line in the cart is shippable.
+                 */
+                shippable: !(
+                    [false, 0, '0', 'false', 'False'].includes(product.is_shippable)
+                    || (product.provider_type === 'm5azn' && product.product_type === 'digital')
+                ),
             }));
         });
 

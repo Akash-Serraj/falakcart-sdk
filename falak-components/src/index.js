@@ -18,6 +18,7 @@ import FalakAddProductButton from './components/add-product-button.js';
 import FalakAnnouncement from './components/announcement.js';
 import FalakCartSummary from './components/cart-summary.js';
 import FalakCartCoupons from './components/cart-coupons.js';
+import FalakCartOffers from './components/cart-offers.js';
 import FalakProductOptions from './components/product-options.js';
 import FalakQuickAdd from './components/quick-add.js';
 import FalakQuickBuy from './components/quick-buy.js';
@@ -103,6 +104,7 @@ const REGISTRY = {
     'falak-announcement': FalakAnnouncement,
     'falak-cart-summary': FalakCartSummary,
     'falak-cart-coupons': FalakCartCoupons,
+    'falak-cart-offers': FalakCartOffers,
     'falak-product-options': FalakProductOptions,
     'falak-quick-add': FalakQuickAdd,
     'falak-quick-buy': FalakQuickBuy,
@@ -203,7 +205,7 @@ export {
     FalakAccordion, FalakAccordionHead, FalakAccordionBody,
     FalakMenu, FalakBreadcrumb,
     FalakSocial, FalakPayments, FalakAppsIcons, FalakTrustBadges,
-    FalakLoginModal, FalakUserMenu, FalakLocalizationModal, FalakCurrency, FalakLanguage, FalakOfferModal, FalakOffers, FalakComments,
+    FalakLoginModal, FalakUserMenu, FalakLocalizationModal, FalakCurrency, FalakLanguage, FalakOfferModal, FalakOffers, FalakCartOffers, FalakComments,
     FalakCountdown, FalakCountDown, FalakFilters,
     FalakCounter, FalakImageCompare, FalakCategories,
     REGISTRY,
