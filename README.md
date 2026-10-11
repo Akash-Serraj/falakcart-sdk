@@ -33,20 +33,46 @@ cannot do is share the result. The SDK exists so that:
 
 ## Build
 
+This repo holds the sources only. The bundles are served by the platform:
+in production from the published npm packages through the CDN, and while
+developing from `public/sdk` of a falakcart checkout. Clone the two repos
+side by side (`…/falakcart` and `…/falakcart-sdk`), or point
+`FALAK_PLATFORM_DIR` at the falakcart checkout.
+
 ```bash
-npm install          # once
-npm run sdk:build    # -> public/sdk/{falak-sdk,falak-components}.js + .css
-npm run sdk:watch    # rebuild on change while developing
+npm install              # once, at this repo's root (workspaces: falak-sdk, falak-components)
+npm run sdk:build        # -> <falakcart>/public/sdk/{falak-sdk,falak-components}.js + .css
+npm run platform:watch   # rebuild on change while developing (writes sourcemaps too)
+npm run sdk:test         # vitest, falak-sdk
 ```
 
-Output lands in `public/sdk/`. The bundles are committed (the storefront hard
-depends on them at runtime and there is no node step on the server).
-Sourcemaps are written only by `sdk:watch` (development mode) and are
-gitignored. `public/sdk` is served as-is, so a map would hand out the full source.
+Then, in the falakcart `.env`:
+
+```dotenv
+FALAK_SDK_SOURCE=local
+```
+
+and the storefront injects `/sdk/falak-sdk.js` and `/sdk/falak-components.js`
+from that folder instead of the CDN, with a cache-buster that changes on
+every rebuild (the bundles' mtime). Those files are gitignored in falakcart;
+nothing there needs committing when the SDK changes. Remove the line (or
+set `npm`) to go back to the published version pinned by
+`FALAK_SDK_NPM_VERSION`.
+
+After editing any `components*.css`, re-embed the component styles into
+each theme stylesheet that carries a copy (the unlayered block that lets a
+theme override `@layer falak`):
+
+```bash
+npm run sync:theme-css -- <falakcart>/storage/themes/<theme>/1.0.0/src/assets/styles/app.css
+```
+
+The `?v=` cache-buster is read from `FALAK_SDK_NPM_VERSION` plus the bundles'
+mtime, so a rebuild without a version bump still produces a new URL.
 
 ### Versions
 
-There is **one** version number, in `packages/falak-sdk/package.json`, and the
+There is **one** version number, in `falak-sdk/package.json`, and the
 components always carry the same one. Everything else reads it:
 
 | Reader | How |
@@ -312,8 +338,8 @@ version.
 ### Publishing
 
 The source packages are named `@falakcart/*` and are `private: true`, so a
-stray `npm publish` in either folder is refused. `packages/scripts/release.mjs`
-builds, stages a copy in `packages/.release/<scope>/` under the scope you pass,
+stray `npm publish` in either folder is refused. `scripts/release.mjs`
+builds, stages a copy in `.release/<scope>/` under the scope you pass,
 and publishes the copy. The same commit can therefore go to the test org first
 and to production after.
 

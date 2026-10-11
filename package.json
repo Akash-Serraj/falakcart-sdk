@@ -1,0 +1,29 @@
+{
+    "$schema": "https://json.schemastore.org/package.json",
+    "name": "falakcart-sdk-workspace",
+    "private": true,
+    "type": "module",
+    "workspaces": [
+        "falak-sdk",
+        "falak-components"
+    ],
+    "scripts": {
+        "sdk:build": "npm run sdk:build:sdk && npm run sdk:build:components",
+        "sdk:build:sdk": "vite build --config falak-sdk/vite.config.js",
+        "sdk:build:components": "vite build --config falak-components/vite.config.js",
+        "sdk:watch": "concurrently -n sdk,components \"vite build --watch --mode development --config falak-sdk/vite.config.js\" \"vite build --watch --mode development --config falak-components/vite.config.js\"",
+        "platform:build": "npm run sdk:build",
+        "platform:watch": "npm run sdk:watch",
+        "sdk:test": "vitest run falak-sdk",
+        "test": "vitest run",
+        "sdk:version": "node scripts/version.mjs",
+        "sdk:pack": "node scripts/release.mjs pack",
+        "sdk:publish": "node scripts/release.mjs publish",
+        "sync:theme-css": "node falak-components/scripts/sync-theme-css.mjs"
+    },
+    "devDependencies": {
+        "concurrently": "^9.0.1",
+        "vite": "^7.0.4",
+        "vitest": "^3.2.7"
+    }
+}

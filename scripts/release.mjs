@@ -25,10 +25,13 @@ import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync, rea
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, extname, relative } from 'node:path';
+import { publicSdkDir } from './platform.mjs';
 
+// This repo IS the packages folder now; the bundles still build into the
+// platform checkout's public/sdk, which is where the storefront serves them.
 const packages = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const repo = resolve(packages, '..');
-const publicSdk = resolve(repo, 'public/sdk');
+const repo = packages;
+const publicSdk = publicSdkDir();
 
 /* ---------------------------------------------------------------- options */
 

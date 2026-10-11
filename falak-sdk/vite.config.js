@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
+import { publicSdkDir } from '../scripts/platform.mjs';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
@@ -23,7 +24,8 @@ export default defineConfig(({ mode }) => ({
         __FALAK_VERSION__: JSON.stringify(pkg.version),
     },
     build: {
-        outDir: fileURLToPath(new URL('../../public/sdk', import.meta.url)),
+        // The platform checkout's public/sdk — see scripts/platform.mjs.
+        outDir: publicSdkDir(),
         emptyOutDir: false,          // components build writes to the same folder
         target: 'es2020',
         sourcemap: mode === 'development',

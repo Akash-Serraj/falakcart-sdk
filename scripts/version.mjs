@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const packages = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const repo = resolve(packages, '..');
+const repo = packages; // the workspace root with package-lock.json
 const files = {
     sdk: resolve(packages, 'falak-sdk/package.json'),
     components: resolve(packages, 'falak-components/package.json'),
