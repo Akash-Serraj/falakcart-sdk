@@ -33,7 +33,12 @@ import NewsletterApi from './api/newsletter.js';
 import Lang from './lang.js';
 import Notify from './notify.js';
 
-const VERSION = '1.0.0';
+/*
+ * Injected at build time from this package's package.json — the one place a
+ * version is written down. Falls back for code paths that import the source
+ * directly without Vite (tests).
+ */
+const VERSION = typeof __FALAK_VERSION__ !== 'undefined' ? __FALAK_VERSION__ : '0.0.0-dev';
 
 /**
  * Merges a domain's API and events into one addressable object.
@@ -224,26 +229,62 @@ function createSdk() {
     return falak;
 }
 
-/*
- * The platform already writes `window.Falak = { boot: {...} }` before this
- * script loads, so anything already on the object is preserved and `boot` is
- * folded into config as the initial context.
- */
-const existing = (typeof window !== 'undefined' && (window.falak || window.Falak)) || {};
-const sdk = Object.assign(createSdk(), existing.boot ? {} : {});
+/** A live SDK instance, as opposed to the platform's `{ boot }` placeholder. */
+function isSdk(value) {
+    return !!value && typeof value.onReady === 'function' && typeof value.init === 'function';
+}
 
-if (existing.boot) {
-    sdk.config.merge({
-        store: { id: existing.boot.storeId },
-        locale: existing.boot.locale,
-        cart: { count: existing.boot.cartCount },
+function install() {
+    /*
+     * The platform already writes `window.Falak = { boot: {...} }` before this
+     * script loads. `boot` is folded into config as the initial context, and
+     * any other key a merchant script parked on the placeholder is carried
+     * over rather than silently dropped — unless it would shadow SDK API.
+     */
+    const existing = (typeof window !== 'undefined' && (window.falak || window.Falak)) || {};
+
+    /*
+     * Loaded twice (a theme that also includes the CDN build, a customizer
+     * preview re-injecting it) keeps the FIRST instance. A second instance
+     * would replace window.falak with an empty event bus and no credentials,
+     * and every listener registered so far would stop firing — the one thing
+     * this object exists to prevent.
+     */
+    if (isSdk(existing)) {
+        if (existing.version !== VERSION) {
+            console.warn(`[falak] SDK v${VERSION} loaded over v${existing.version}; keeping v${existing.version}.`);
+        }
+
+        return existing;
+    }
+
+    const sdk = createSdk();
+
+    Object.keys(existing).forEach(key => {
+        if (key !== 'boot' && !(key in sdk)) sdk[key] = existing[key];
     });
-    sdk.boot = existing.boot;
+
+    if (existing.boot) {
+        sdk.config.merge({
+            store: { id: existing.boot.storeId },
+            locale: existing.boot.locale,
+            cart: { count: existing.boot.cartCount },
+        });
+        sdk.boot = existing.boot;
+    }
+
+    if (typeof window !== 'undefined') {
+        window.falak = sdk;
+        window.Falak = sdk;   // both spellings, one object
+
+        // Lets code that loaded first (the npm accessor's `loaded()`) learn
+        // the instance exists without polling for it.
+        document.dispatchEvent(new CustomEvent('falak:loaded', { detail: sdk }));
+    }
+
+    return sdk;
 }
 
-if (typeof window !== 'undefined') {
-    window.falak = sdk;
-    window.Falak = sdk;   // both spellings, one object
-}
+const sdk = install();
 
 export default sdk;

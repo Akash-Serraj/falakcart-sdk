@@ -1,17 +1,63 @@
 {
     "name": "@falakcart/components",
     "version": "1.0.0",
-    "description": "FalakCart storefront web components. Reads @falakcart/sdk from window at runtime; ships its stylesheet as falak-components.css.",
+    "description": "FalakCart storefront web components — tag types, editor autocompletion and stylesheet source for the <falak-*> elements the platform injects.",
     "license": "UNLICENSED",
     "private": true,
     "type": "module",
-    "main": "src/index.js",
+    "main": "./npm/index.js",
+    "module": "./npm/index.js",
+    "types": "./types/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./types/index.d.ts",
+            "default": "./npm/index.js"
+        },
+        "./falak-components.js": "./dist/falak-components.js",
+        "./falak-components.css": "./dist/falak-components.css",
+        "./css/*": "./src/*",
+        "./custom-elements.json": "./custom-elements.json",
+        "./html-custom-data.json": "./html-custom-data.json",
+        "./package.json": "./package.json"
+    },
+    "bin": {
+        "falak-sync-theme-css": "scripts/sync-theme-css.mjs"
+    },
+    "customElements": "./custom-elements.json",
+    "unpkg": "./dist/falak-components.js",
+    "jsdelivr": "./dist/falak-components.js",
     "files": [
-        "src"
+        "npm",
+        "types",
+        "dist",
+        "src/styles.css",
+        "src/components.css",
+        "src/components.chrome.css",
+        "src/components.account.css",
+        "scripts/sync-theme-css.mjs",
+        "custom-elements.json",
+        "html-custom-data.json",
+        "README.md"
     ],
+    "sideEffects": false,
+    "keywords": [
+        "falakcart",
+        "storefront",
+        "web-components",
+        "custom-elements",
+        "themes"
+    ],
+    "homepage": "https://falakcart.sa",
     "scripts": {
         "build": "vite build",
-        "sync:theme-css": "node scripts/sync-theme-css.mjs",
-        "watch": "vite build --watch"
+        "watch": "vite build --watch --mode development",
+        "manifest": "node scripts/build-manifest.mjs",
+        "sync:theme-css": "node scripts/sync-theme-css.mjs"
+    },
+    "dependencies": {
+        "@falakcart/sdk": "1.0.0"
+    },
+    "devDependencies": {
+        "vite": "^7.0.4"
     }
 }

@@ -161,6 +161,13 @@ const REGISTRY = {
     'falak-contact-links': FalakContactLinks,
 };
 
+/*
+ * Injected at build time from package.json. The two packages are released in
+ * lockstep, so a different SDK version on the page means one bundle came from
+ * a cache the other did not — worth one console line, not a hard failure.
+ */
+const VERSION = typeof __FALAK_VERSION__ !== 'undefined' ? __FALAK_VERSION__ : '0.0.0-dev';
+
 export function defineComponents() {
     if (typeof customElements === 'undefined') return;
 
@@ -169,6 +176,11 @@ export function defineComponents() {
     });
 
     if (typeof window !== 'undefined' && window.falak) {
+        if (window.falak.version !== VERSION) {
+            console.warn(`[falak] components v${VERSION} running on SDK v${window.falak.version}; expected matching versions.`);
+        }
+
+        window.falak.componentsVersion = VERSION;
         window.falak.components = Object.keys(REGISTRY);
         window.falak.event.emit('falak::components.defined', Object.keys(REGISTRY));
 
@@ -176,6 +188,10 @@ export function defineComponents() {
         // there is no element on the page to do it, so the bundle does.
         window.falak.onReady(() => FalakMiniCheckout.resume());
     }
+
+    // The DOM twin of 'falak::components.defined', for code that may run
+    // before window.falak exists (the npm entry's `defined()`).
+    document.dispatchEvent(new CustomEvent('falak:components-defined', { detail: Object.keys(REGISTRY) }));
 }
 
 defineComponents();

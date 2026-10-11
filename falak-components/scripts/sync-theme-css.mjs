@@ -1,8 +1,10 @@
+#!/usr/bin/env node
 /**
  * Copies the SDK component stylesheet into a theme's app.css so a theme
  * developer finds every component class in the file they already edit.
  *
- *   node packages/falak-components/scripts/sync-theme-css.mjs <path/to/app.css>
+ *   node packages/falak-components/scripts/sync-theme-css.mjs <path/to/app.css>   (in this repo)
+ *   npx falak-sync-theme-css <path/to/app.css>                                   (from npm)
  *
  * The copy lives between two marker comments and is replaced wholesale on
  * every run, so re-running after an SDK release refreshes it. It is written
@@ -19,7 +21,7 @@ import { dirname, resolve } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const target = process.argv[2];
-if (!target) { console.error('usage: sync-theme-css.mjs <app.css>'); process.exit(1); }
+if (!target) { console.error('usage: falak-sync-theme-css <path/to/app.css>'); process.exit(1); }
 
 const SOURCES = ['components.css', 'components.chrome.css', 'components.account.css'];
 const START = '/* ==== SDK COMPONENT CLASSES — generated, do not edit (see sync-theme-css.mjs) ==== */';
@@ -40,7 +42,7 @@ const block = `${START}
     Because this copy is unlayered, an override must match the copied rule's
     specificity (e.g. two classes beat one) — unlike the SDK's layered sheet.
     Regenerate after an SDK update:
-      node packages/falak-components/scripts/sync-theme-css.mjs <this file>
+      npx falak-sync-theme-css <this file>
 */
 
 ${body}

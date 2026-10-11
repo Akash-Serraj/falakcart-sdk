@@ -1,14 +1,45 @@
 {
     "name": "@falakcart/sdk",
     "version": "1.0.0",
-    "description": "FalakCart storefront SDK — config, events, API and formatting for themes and components.",
+    "description": "FalakCart storefront SDK — typed access to the window.falak runtime the platform injects into every storefront.",
     "license": "UNLICENSED",
     "private": true,
     "type": "module",
-    "main": "src/index.js",
-    "files": ["src", "types"],
+    "main": "./npm/index.js",
+    "module": "./npm/index.js",
+    "types": "./types/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./types/index.d.ts",
+            "default": "./npm/index.js"
+        },
+        "./falak-sdk.js": "./dist/falak-sdk.js",
+        "./package.json": "./package.json"
+    },
+    "unpkg": "./dist/falak-sdk.js",
+    "jsdelivr": "./dist/falak-sdk.js",
+    "files": [
+        "npm",
+        "types",
+        "dist",
+        "README.md"
+    ],
+    "sideEffects": false,
+    "keywords": [
+        "falakcart",
+        "storefront",
+        "sdk",
+        "ecommerce",
+        "themes"
+    ],
+    "homepage": "https://falakcart.sa",
     "scripts": {
         "build": "vite build",
-        "watch": "vite build --watch"
+        "watch": "vite build --watch --mode development",
+        "test": "vitest run"
+    },
+    "devDependencies": {
+        "vite": "^7.0.4",
+        "vitest": "^3.2.7"
     }
 }
