@@ -12,3 +12,4 @@ packages/components/types/
 Thumbs.db
 .idea/
 .vscode/
+*.tgz

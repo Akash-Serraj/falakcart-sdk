@@ -162,7 +162,8 @@ export default class FalakWishlistDrawer extends FalakElement {
             id: product.id,
             name: (locale === 'ar' && product.name_ar ? product.name_ar : product.name) || '',
             url: this.sdk.url?.product ? this.sdk.url.product(product.id) : `/product/${product.id}`,
-            image: product.image_path || product.images?.[0]?.url || product.images?.[0]?.image_path || product.image || null,
+            image: product.image_path || product.images?.[0]?.url || product.images?.[0]?.image_path || product.image
+                || this.sdk.config.get('store.placeholders.product') || null,
             price: onSale ? discount : list,
             compareAt: onSale ? list : null,
             currency: product.currency || null,

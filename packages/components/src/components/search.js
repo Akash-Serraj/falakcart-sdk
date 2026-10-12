@@ -143,7 +143,10 @@ export default class FalakSearch extends FalakElement {
         const onSale = discount > 0 && discount < list;
         const price = onSale ? discount : list;
 
-        const image = product.images?.[0]?.url || product.images?.[0]?.image_path || null;
+        const image = product.images?.[0]?.url
+            || product.images?.[0]?.image_path
+            || this.sdk.config.get('store.placeholders.product')
+            || null;
         const url = this.sdk.url.product(product.id);
 
         return `

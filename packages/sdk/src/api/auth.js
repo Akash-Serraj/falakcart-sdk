@@ -1,7 +1,7 @@
 import BaseApi from './base.js';
 
 /**
- * Customer authentication.
+ * Customer authentication..
  *
  * FalakCart authenticates by one-time password on a phone number, not by
  * email and password: `send-otp` creates the customer if they are new, and

@@ -81,6 +81,8 @@ export default class FalakOrderSummary extends FalakElement {
             isReviewable: FalakOrderSummary.REVIEWABLE_STATUSES.includes(status),
             canConfirmDelivery: status === 'out_for_delivery',
             returnRequest: (order.return_requests || [])[0] || null,
+            // Nothing is packed or carried: no tracking card, and the address is contact details.
+            isDigitalOnly: order.is_shippable === false,
         };
     }
 
@@ -135,8 +137,8 @@ export default class FalakOrderSummary extends FalakElement {
         if (!this.hides('review') && f.hasSubmittedReview) main.push(this.reviewHtml(order));
         if (!this.hides('payment') || !this.hides('totals')) main.push(this.paymentHtml(order, f));
 
-        if (!this.hides('address')) side.push(this.addressHtml(order));
-        if (!this.hides('tracking')) side.push(this.trackingHtml(order, f));
+        if (!this.hides('address')) side.push(this.addressHtml(order, f));
+        if (!this.hides('tracking') && !f.isDigitalOnly) side.push(this.trackingHtml(order, f));
         if (!this.hides('actions')) side.push(this.actionsHtml(order, f));
         if (!this.hides('info')) side.push(this.infoHtml(order, f));
 
@@ -468,7 +470,26 @@ export default class FalakOrderSummary extends FalakElement {
             ? this.label(`account.payment_method.${String(order.payment_method || '').toLowerCase()}`, FalakOrderSummary.titleCase(methodName))
             : '';
         const reference = payment.gateway_reference || '';
-        const currency = payment.currency || order.charged_currency || order.currency || '';
+        /*
+         * Two currencies can be true of one order: the one the totals on this
+         * page are shown in (the shopper's display currency) and the one the
+         * gateway actually settled in — Tamara and Tabby take SAR whatever the
+         * shopper was reading. A row saying "Currency: SAR" beside totals in
+         * dollars read as a contradiction. When the two differ the row says
+         * what happened — "Charged in: 240.03 SAR" with the gateway's chip —
+         * and when they agree it simply names the currency the page is in.
+         */
+        const settled = String(payment.currency || order.charged_currency || '').toUpperCase();
+        const display = String(this.sdk.localization.currency || order.currency || '').toUpperCase();
+        const chargedElsewhere = settled && display && settled !== display;
+        const currency = chargedElsewhere
+            ? (Number.isFinite(Number(order.charged_amount))
+                ? this.sdk.money(order.charged_amount, settled, { convert: false })
+                : settled)
+            : (display || settled || String(order.currency || '').toUpperCase());
+        const currencyLabel = chargedElsewhere
+            ? this.label('account.charged_in', 'Charged in')
+            : this.trans('account.currency');
 
         const rows = [];
         if (!this.hides('payment') && method) {
@@ -487,8 +508,8 @@ export default class FalakOrderSummary extends FalakElement {
                 <div class="f-order__pay-row">
                     <span class="f-order__pay-row-icon" aria-hidden="true">${FalakOrderSummary.icon('globe')}</span>
                     <span class="f-order__pay-row-body">
-                        <span class="f-order__pay-row-label">${this.escape(this.trans('account.currency'))}</span>
-                        <span class="f-order__pay-row-value" dir="ltr">${this.escape(String(currency).toUpperCase())}</span>
+                        <span class="f-order__pay-row-label">${this.escape(currencyLabel)}</span>
+                        <span class="f-order__pay-row-value" dir="ltr">${this.escape(currency)}</span>
                     </span>
                     ${payment.gateway ? `<span class="f-order__badge">${this.escape(String(payment.gateway).toUpperCase())}</span>` : ''}
                 </div>`);
@@ -554,7 +575,8 @@ export default class FalakOrderSummary extends FalakElement {
         return `<p class="f-order__charged">${this.escape(this.trans('thank_you.charged', { amount }))}</p>`;
     }
 
-    addressHtml(order) {
+    addressHtml(order, f = null) {
+        const digitalOnly = !!f?.isDigitalOnly;
         const address = order.address || {};
 
         // An order with nothing to ship is saved with a placeholder address
@@ -568,7 +590,7 @@ export default class FalakOrderSummary extends FalakElement {
 
         return `
             <section class="f-order__card f-order__address">
-                <h3 class="f-order__card-title">${FalakOrderSummary.icon('pin')} ${this.escape(this.trans('account.shipping_address'))}</h3>
+                <h3 class="f-order__card-title">${FalakOrderSummary.icon(digitalOnly ? 'mail' : 'pin')} ${this.escape(this.trans(digitalOnly ? 'account.customer_information' : 'account.shipping_address'))}</h3>
                 <p class="f-order__detail-text">
                     ${address.name ? `<strong>${this.escape(address.name)}</strong><br>` : ''}
                     ${line ? `${this.escape(line)}<br>` : ''}
@@ -1184,6 +1206,7 @@ export default class FalakOrderSummary extends FalakElement {
             review_reply: raw.review_reply ?? null,
             review_replied_at: raw.review_replied_at ?? null,
             can_cancel: envelope?.can_cancel ?? raw.can_cancel ?? false,
+            is_shippable: envelope?.is_shippable ?? raw.is_shippable ?? null,
             can_review: envelope?.can_review ?? raw.can_review ?? false,
             channel: envelope?.channel ?? raw.channel ?? raw.sales_channel_meta?.channel ?? null,
             return_requests: Array.isArray(envelope?.return_requests) ? envelope.return_requests : (Array.isArray(raw.return_requests) ? raw.return_requests : []),
