@@ -1,6 +1,6 @@
 {
     "name": "@falakcart/components",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "FalakCart storefront web components — tag types, editor autocompletion and stylesheet source for the <falak-*> elements the platform injects.",
     "license": "UNLICENSED",
     "private": true,
@@ -55,7 +55,7 @@
         "sync:theme-css": "node scripts/sync-theme-css.mjs"
     },
     "dependencies": {
-        "@falakcart/sdk": "1.0.1"
+        "@falakcart/sdk": "1.0.2"
     },
     "devDependencies": {
         "vite": "7.1.2"
