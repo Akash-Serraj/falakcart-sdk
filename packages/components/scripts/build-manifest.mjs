@@ -1,7 +1,7 @@
 /**
  * Describes every <falak-*> tag for editors and type checkers.
  *
- *   node packages/falak-components/scripts/build-manifest.mjs <outDir>
+ *   node packages/components/scripts/build-manifest.mjs <outDir>   (npm run manifest writes into the package)
  *
  * Writes three files into <outDir>, all derived from the source so they cannot
  * drift from it:

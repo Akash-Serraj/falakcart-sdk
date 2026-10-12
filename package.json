@@ -1,0 +1,29 @@
+{
+    "name": "falakcart-sdk",
+    "private": true,
+    "type": "module",
+    "description": "FalakCart storefront runtime — @falakcart/sdk and @falakcart/components.",
+    "workspaces": [
+        "packages/sdk",
+        "packages/components"
+    ],
+    "engines": {
+        "node": ">=20"
+    },
+    "scripts": {
+        "build": "npm run build -w @falakcart/sdk && npm run build -w @falakcart/components",
+        "watch": "concurrently -n sdk,components \"npm run watch -w @falakcart/sdk\" \"npm run watch -w @falakcart/components\"",
+        "test": "vitest run",
+        "manifest": "node packages/components/scripts/build-manifest.mjs packages/components",
+        "platform:build": "node scripts/platform.mjs build",
+        "platform:watch": "node scripts/platform.mjs watch",
+        "version:bump": "node scripts/version.mjs",
+        "release:pack": "node scripts/release.mjs pack",
+        "release:publish": "node scripts/release.mjs publish"
+    },
+    "devDependencies": {
+        "concurrently": "^9.0.1",
+        "vite": "7.1.2",
+        "vitest": "^3.2.7"
+    }
+}

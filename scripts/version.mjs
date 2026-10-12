@@ -1,26 +1,25 @@
 /**
  * Bumps @falakcart/sdk and @falakcart/components together.
  *
- *   npm run sdk:version -- patch          1.0.0 -> 1.0.1
- *   npm run sdk:version -- minor          1.0.0 -> 1.1.0
- *   npm run sdk:version -- 2.0.0-beta.1   explicit
+ *   npm run version:bump -- patch          1.0.0 -> 1.0.1
+ *   npm run version:bump -- minor          1.0.0 -> 1.1.0
+ *   npm run version:bump -- 2.0.0-beta.1   explicit
  *
  * The two packages ship in the same platform deploy and talk to each other at
  * runtime, so they share ONE version number: "components 1.3 on SDK 1.2" is a
  * state that should not be expressible. package.json is the only place a
- * version is written — the bundles get it through Vite `define`, the platform's
- * cache-buster reads it from the SDK's package.json.
+ * version is written — the bundles get it through Vite `define`, npm from
+ * the staged package.json.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-const packages = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const repo = resolve(packages, '..');
+const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const files = {
-    sdk: resolve(packages, 'falak-sdk/package.json'),
-    components: resolve(packages, 'falak-components/package.json'),
+    sdk: resolve(repo, 'packages/sdk/package.json'),
+    components: resolve(repo, 'packages/components/package.json'),
 };
 
 const read = path => JSON.parse(readFileSync(path, 'utf8'));
@@ -46,7 +45,7 @@ function next(current, bump) {
 const bump = process.argv[2];
 
 if (!bump) {
-    console.error('usage: npm run sdk:version -- <patch|minor|major|x.y.z>');
+    console.error('usage: npm run version:bump -- <patch|minor|major|x.y.z>');
     process.exit(1);
 }
 
@@ -70,4 +69,4 @@ write(files.components, components);
 execSync('npm install --package-lock-only --ignore-scripts --no-audit --no-fund', { cwd: repo, stdio: 'inherit' });
 
 console.log(`\n@falakcart/sdk + @falakcart/components -> ${version}`);
-console.log('Next: npm run sdk:build, commit, then npm run sdk:publish -- --scope=<scope>');
+console.log('Next: commit, then npm run release:publish -- --scope=<scope> (see README: Releasing)');

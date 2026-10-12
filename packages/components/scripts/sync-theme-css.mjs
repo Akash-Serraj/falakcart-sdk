@@ -3,7 +3,7 @@
  * Copies the SDK component stylesheet into a theme's app.css so a theme
  * developer finds every component class in the file they already edit.
  *
- *   node packages/falak-components/scripts/sync-theme-css.mjs <path/to/app.css>   (in this repo)
+ *   node packages/components/scripts/sync-theme-css.mjs <path/to/app.css>   (in this repo)
  *   npx falak-sync-theme-css <path/to/app.css>                                   (from npm)
  *
  * The copy lives between two marker comments and is replaced wholesale on
@@ -30,7 +30,7 @@ const ANCHOR = '/* ------------------------------------------------ platform com
 
 const body = SOURCES.map(f => {
     const css = readFileSync(resolve(here, '../src', f), 'utf8').replace(/\r\n/g, '\n').trim();
-    return `/* ---- from packages/falak-components/src/${f} ---- */\n\n${css}`;
+    return `/* ---- from @falakcart/components/src/${f} ---- */\n\n${css}`;
 }).join('\n\n');
 
 const block = `${START}

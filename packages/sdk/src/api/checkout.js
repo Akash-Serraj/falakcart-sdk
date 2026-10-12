@@ -103,8 +103,13 @@ export default class CheckoutApi extends BaseApi {
         return Array.isArray(list) ? list : [];
     }
 
-    async cities(gatewayCode, countryCode) {
-        const response = await this.call('cities', { body: { gateway_code: gatewayCode, country_code: countryCode } });
+    /**
+     * `extra` carries what a non-carrier method needs: a private courier has no
+     * gateway of its own, so the server needs `{ courier_id }` to find its
+     * coverage.
+     */
+    async cities(gatewayCode, countryCode, extra = {}) {
+        const response = await this.call('cities', { body: { ...extra, gateway_code: gatewayCode, country_code: countryCode } });
         const list = response?.data?.cities ?? response?.cities ?? [];
 
         return Array.isArray(list) ? list : [];

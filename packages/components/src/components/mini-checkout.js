@@ -21,11 +21,6 @@ import FalakElement from '../base.js';
 export default class FalakMiniCheckout extends FalakElement {
     static observedAttributes = [];
 
-    static COUNTRY_NAMES = {
-        SA: ['Saudi Arabia', 'المملكة العربية السعودية'], AE: ['United Arab Emirates', 'الإمارات العربية المتحدة'],
-        KW: ['Kuwait', 'الكويت'], OM: ['Oman', 'عُمان'], BH: ['Bahrain', 'البحرين'], QA: ['Qatar', 'قطر'],
-    };
-
     /** Finds or creates the page's dialog and opens it for a product. */
     /**
      * Brings back a buy-now the shopper left to sign in. The dialog is
@@ -106,9 +101,22 @@ export default class FalakMiniCheckout extends FalakElement {
 
     truthy(value) { return value === true || value === 1 || value === '1'; }
 
+    /** A country's name from the list the server gave for this method. */
     countryName(code) {
-        const known = FalakMiniCheckout.COUNTRY_NAMES[code];
-        return known ? known[this.isRtl ? 1 : 0] : code;
+        return this.state.countries.find(c => c.code === code)?.name || code;
+    }
+
+    /**
+     * A private courier's countries, named by the server (`country_options`,
+     * from the platform's countries table). A platform too old to send them
+     * leaves the bare codes.
+     */
+    courierCountries(method) {
+        const options = Array.isArray(method.country_options) ? method.country_options : [];
+
+        return options.length
+            ? options.map(c => ({ code: c.code, name: (this.isRtl && c.name_ar) || c.name || c.code }))
+            : (Array.isArray(method.countries) ? method.countries : []).map(code => ({ code, name: code }));
     }
 
     /* ------------------------------------------------------ imperative API */
@@ -476,16 +484,21 @@ export default class FalakMiniCheckout extends FalakElement {
 
         if (!method) { if (rerender) this.render(); return; }
 
-        if (rerender) this.render();
+        if (method.shipment_type === 'private_courier') {
+            // Not a gateway: its countries, with names, arrive on the method itself.
+            this.state.countries = this.courierCountries(method);
+        } else {
+            if (rerender) this.render();
 
-        try {
-            const list = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.countries(method.code));
-            this.state.countries = list.map(c => ({
-                code: c.Code ?? c.code ?? c.value ?? c,
-                name: (this.isRtl && (c.NameAr ?? c.name_ar)) || c.Name || c.name || c.code || c,
-            }));
-        } catch (error) {
-            this.state.error = error?.message || this.trans('common.load_failed');
+            try {
+                const list = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.countries(method.code));
+                this.state.countries = list.map(c => ({
+                    code: c.Code ?? c.code ?? c.value ?? c,
+                    name: (this.isRtl && (c.NameAr ?? c.name_ar)) || c.Name || c.name || c.code || c,
+                }));
+            } catch (error) {
+                this.state.error = error?.message || this.trans('common.load_failed');
+            }
         }
 
         if (this.state.countries.length === 1) {
@@ -517,7 +530,10 @@ export default class FalakMiniCheckout extends FalakElement {
         this.render();
 
         try {
-            const raw = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.cities(method.code, country));
+            // A private courier is not a gateway; the server finds it by id.
+            const raw = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.cities(
+                method.code, country, method.shipment_type === 'private_courier' ? { courier_id: method.id } : {}
+            ));
             this.state.cities = raw.map(c => typeof c === 'string' ? { value: c, name: c } : { value: c.value ?? c.id ?? c.name, name: (this.isRtl && c.name_ar) || c.name || c.value });
         } catch (error) {
             this.state.cities = [];
@@ -560,7 +576,10 @@ export default class FalakMiniCheckout extends FalakElement {
         const f = this.state.form;
         const address = {
             name: f.name.trim(), phone: f.phone.trim(), email: f.email.trim(),
-            address: f.street.trim(), city: f.cityName || f.city, country: f.country,
+            address: f.street.trim(),
+            // A private courier checks coverage on the English value, not the shown (maybe Arabic) name.
+            city: (this.state.method?.shipment_type === 'private_courier' && f.city) ? f.city : (f.cityName || f.city),
+            country: f.country,
         };
         if (f.city) { address.city_id = f.city; }
 

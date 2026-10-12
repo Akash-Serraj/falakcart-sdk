@@ -1,6 +1,6 @@
 {
     "name": "@falakcart/sdk",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "FalakCart storefront SDK — typed access to the window.falak runtime the platform injects into every storefront.",
     "license": "UNLICENSED",
     "private": true,
@@ -39,7 +39,7 @@
         "test": "vitest run"
     },
     "devDependencies": {
-        "vite": "^7.0.4",
+        "vite": "7.1.2",
         "vitest": "^3.2.7"
     }
 }

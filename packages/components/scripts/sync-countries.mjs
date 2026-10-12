@@ -1,7 +1,10 @@
 /**
  * Mirrors the platform's country list into the components package.
  *
- *   node packages/falak-components/scripts/sync-countries.mjs
+ *   node packages/components/scripts/sync-countries.mjs [path/to/countries.ts]
+ *
+ * The source lives in the platform repo; by default the sibling checkout at
+ * ../falakcart is used.
  *
  * frontend/src/utils/countries.ts is the canonical dataset (the admin's phone
  * fields and config/countries.php are already derived from it). The storefront
@@ -15,7 +18,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const source = resolve(here, '../../../frontend/src/utils/countries.ts');
+const source = process.argv[2]
+    ? resolve(process.argv[2])
+    : resolve(here, '../../../../falakcart/frontend/src/utils/countries.ts');
 const target = resolve(here, '../src/lib/countries.js');
 
 const ts = readFileSync(source, 'utf8');

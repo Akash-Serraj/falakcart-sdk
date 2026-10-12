@@ -1,0 +1,33 @@
+name: Release
+
+# Push a tag such as v1.0.2 (after `npm run version:bump`) to publish.
+# Needs the NPM_TOKEN secret (granular token, "bypass 2FA") and the
+# NPM_SCOPE variable (test_falakcart or falakcart) in the repository settings.
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm test
+
+      - name: Tag matches package version
+        run: |
+          version=$(node -p "require('./packages/sdk/package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package version $version"; exit 1
+          fi
+
+      - run: npm run release:publish -- --scope=${{ vars.NPM_SCOPE }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,10 +1,10 @@
 /**
  * Stages and publishes @<scope>/sdk and @<scope>/components to npm.
  *
- *   npm run sdk:pack    -- --scope=test_falakcart            build + stage + .tgz, nothing uploaded
- *   npm run sdk:publish -- --scope=test_falakcart --dry-run  everything except the upload
- *   npm run sdk:publish -- --scope=test_falakcart            publish to the test org
- *   npm run sdk:publish -- --scope=falakcart                 publish for production
+ *   npm run release:pack    -- --scope=test_falakcart            build + stage + .tgz, nothing uploaded
+ *   npm run release:publish -- --scope=test_falakcart --dry-run  everything except the upload
+ *   npm run release:publish -- --scope=test_falakcart            publish to the test org
+ *   npm run release:publish -- --scope=falakcart                 publish for production
  *
  * Options:  --scope=<org>   npm org without the @ (default: falakcart)
  *           --tag=<tag>     dist-tag (default: latest; "next" for prereleases)
@@ -17,8 +17,9 @@
  *     an accidental `npm publish` in the folder is refused. The scope is a
  *     publish-time choice, which is what lets the same commit go to the test
  *     org and then to production without editing a file.
- *   - dist/ is the exact bundle the platform serves from public/sdk, copied in,
- *     so npm and the storefront never disagree about what 1.2.0 is.
+ *   - dist/ is built fresh from the tagged source, and it is the exact file
+ *     the platform loads from the CDN, so npm and the storefront never
+ *     disagree about what 1.2.0 is.
  *   - The components' manifest and tag types are generated here from source.
  */
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -26,9 +27,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, extname, relative } from 'node:path';
 
-const packages = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const repo = resolve(packages, '..');
-const publicSdk = resolve(repo, 'public/sdk');
+const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /* ---------------------------------------------------------------- options */
 
@@ -50,13 +49,13 @@ const SOURCE_SCOPE = '@falakcart/';
 
 const PACKAGES = [
     {
-        dir: 'falak-sdk',
+        dir: 'packages/sdk',
         dist: ['falak-sdk.js'],
     },
     {
-        dir: 'falak-components',
+        dir: 'packages/components',
         dist: ['falak-components.js', 'falak-components.css'],
-        generate: out => run('node', [resolve(packages, 'falak-components/scripts/build-manifest.mjs'), out]),
+        generate: out => run('node', [resolve(repo, 'packages/components/scripts/build-manifest.mjs'), out]),
         // generated into the stage, not copied from source
         generated: ['types', 'custom-elements.json', 'html-custom-data.json'],
     },
@@ -95,15 +94,15 @@ const rescope = text => text.split(SOURCE_SCOPE).join(`@${scope}/`);
 
 /* ------------------------------------------------------------ preflight */
 
-const manifests = PACKAGES.map(p => ({ ...p, pkg: read(resolve(packages, p.dir, 'package.json')) }));
+const manifests = PACKAGES.map(p => ({ ...p, pkg: read(resolve(repo, p.dir, 'package.json')) }));
 const version = manifests[0].pkg.version;
 
 for (const { pkg } of manifests) {
-    if (pkg.version !== version) fail(`${pkg.name} is ${pkg.version} but ${manifests[0].pkg.name} is ${version}. Run npm run sdk:version.`);
+    if (pkg.version !== version) fail(`${pkg.name} is ${pkg.version} but ${manifests[0].pkg.name} is ${version}. Run npm run version:bump.`);
 
     for (const [dep, range] of Object.entries(pkg.dependencies || {})) {
         if (dep.startsWith(SOURCE_SCOPE) && range !== version) {
-            fail(`${pkg.name} depends on ${dep}@${range}, expected ${version}. Run npm run sdk:version -- ${version}.`);
+            fail(`${pkg.name} depends on ${dep}@${range}, expected ${version}. Run npm run version:bump -- ${version}.`);
         }
     }
 }
@@ -129,28 +128,28 @@ if (command === 'publish' && !dryRun) {
         if (manifest.published) console.log(`${name}@${version} is already on the registry — skipping it.`);
     }
 
-    if (manifests.every(m => m.published)) fail(`Both packages are already published at ${version}. Bump with npm run sdk:version.`);
+    if (manifests.every(m => m.published)) fail(`Both packages are already published at ${version}. Bump with npm run version:bump.`);
 }
 
 /* ------------------------------------------------------------------ build */
 
 if (!flags['skip-build']) {
-    run('npm', ['run', 'sdk:build']);
+    run('npm', ['run', 'build']);
 }
 
-for (const { dist } of manifests) {
+for (const { dir, dist } of manifests) {
     for (const file of dist) {
-        const path = resolve(publicSdk, file);
-        if (!existsSync(path)) fail(`public/sdk/${file} is missing — run npm run sdk:build.`);
+        const path = resolve(repo, dir, 'dist', file);
+        if (!existsSync(path)) fail(`${dir}/dist/${file} is missing — run npm run build.`);
         if (file.endsWith('.js') && !readFileSync(path, 'utf8').includes(JSON.stringify(version))) {
-            fail(`public/sdk/${file} was not built from ${version}. Rebuild, or drop --skip-build.`);
+            fail(`${dir}/dist/${file} was not built from ${version}. Rebuild, or drop --skip-build.`);
         }
     }
 }
 
 /* ------------------------------------------------------------------ stage */
 
-const releaseRoot = resolve(packages, '.release', scope);
+const releaseRoot = resolve(repo, '.release', scope);
 
 // Empty it rather than delete it: Windows refuses to remove a directory that
 // is any shell's working directory — e.g. one opened to inspect the tarballs.
@@ -158,8 +157,8 @@ mkdirSync(releaseRoot, { recursive: true });
 readdirSync(releaseRoot).forEach(name => rmSync(resolve(releaseRoot, name), { recursive: true, force: true }));
 
 const staged = manifests.map(({ dir, pkg, dist, generate, generated = [] }) => {
-    const source = resolve(packages, dir);
-    const out = resolve(releaseRoot, dir);
+    const source = resolve(repo, dir);
+    const out = resolve(releaseRoot, dir.split('/').pop());
     mkdirSync(out, { recursive: true });
 
     for (const entry of pkg.files || []) {
@@ -172,7 +171,7 @@ const staged = manifests.map(({ dir, pkg, dist, generate, generated = [] }) => {
     }
 
     mkdirSync(resolve(out, 'dist'), { recursive: true });
-    dist.forEach(file => cpSync(resolve(publicSdk, file), resolve(out, 'dist', file)));
+    dist.forEach(file => cpSync(resolve(source, 'dist', file), resolve(out, 'dist', file)));
 
     generate?.(out);
 
@@ -225,5 +224,5 @@ for (const { name, out, skip } of staged) {
 }
 
 console.log(command === 'pack'
-    ? `\nTarballs in ${relative(repo, releaseRoot)}. Inspect them, then npm run sdk:publish -- --scope=${scope}`
+    ? `\nTarballs in ${relative(repo, releaseRoot)}. Inspect them, then npm run release:publish -- --scope=${scope}`
     : `\n${dryRun ? 'Dry run complete — nothing was uploaded.' : `Published @${scope}/sdk and @${scope}/components ${version}.`}`);

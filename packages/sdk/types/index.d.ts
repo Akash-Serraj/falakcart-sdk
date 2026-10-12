@@ -415,7 +415,8 @@ export interface CheckoutApi {
     shipmentGateways(): Promise<FalakRecord[]>;
     paymentGateways(): Promise<FalakRecord[]>;
     countries(gatewayCode: string): Promise<FalakRecord[]>;
-    cities(gatewayCode: string, countryCode: string): Promise<FalakRecord[]>;
+    /** `extra` — e.g. `{ courier_id }` for a private courier. */
+    cities(gatewayCode: string, countryCode: string, extra?: Record<string, unknown>): Promise<FalakRecord[]>;
     districts(gatewayCode: string, cityId: Id, cityName?: string | null): Promise<FalakRecord[]>;
 
     /** What a shipping method can do — read from the payload, no request. */

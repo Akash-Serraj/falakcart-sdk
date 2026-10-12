@@ -1,8 +1,14 @@
 import { defineConfig } from 'vite';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
+import { resolve } from 'node:path';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+
+/* dist/ by default; FALAK_SDK_OUT_DIR for a platform checkout — see the SDK's vite.config.js. */
+const outDir = process.env.FALAK_SDK_OUT_DIR
+    ? resolve(process.env.FALAK_SDK_OUT_DIR)
+    : fileURLToPath(new URL('dist', import.meta.url));
 
 /**
  * Components build to their own bundle, separate from the SDK.
@@ -19,8 +25,8 @@ export default defineConfig(({ mode }) => ({
         __FALAK_VERSION__: JSON.stringify(pkg.version),
     },
     build: {
-        outDir: fileURLToPath(new URL('../../public/sdk', import.meta.url)),
-        emptyOutDir: false,
+        outDir,
+        emptyOutDir: !process.env.FALAK_SDK_OUT_DIR,
         target: 'es2020',
         sourcemap: mode === 'development',
         lib: {

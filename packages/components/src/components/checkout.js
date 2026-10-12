@@ -26,14 +26,6 @@ import FalakElement from '../base.js';
 export default class FalakCheckout extends FalakElement {
     static observedAttributes = ['thank-you-url', 'cart-url'];
 
-    static COUNTRY_NAMES = {
-        SA: ['Saudi Arabia', 'المملكة العربية السعودية'], AE: ['United Arab Emirates', 'الإمارات العربية المتحدة'],
-        KW: ['Kuwait', 'الكويت'], OM: ['Oman', 'عُمان'], BH: ['Bahrain', 'البحرين'], QA: ['Qatar', 'قطر'],
-        EG: ['Egypt', 'مصر'], JO: ['Jordan', 'الأردن'], IQ: ['Iraq', 'العراق'], LB: ['Lebanon', 'لبنان'],
-        MA: ['Morocco', 'المغرب'], TR: ['Türkiye', 'تركيا'], PK: ['Pakistan', 'باكستان'], IN: ['India', 'الهند'],
-        GB: ['United Kingdom', 'المملكة المتحدة'], US: ['United States', 'الولايات المتحدة'],
-    };
-
     /**
      * What this shipping method needs — read through the SDK.
      *
@@ -235,9 +227,22 @@ export default class FalakCheckout extends FalakElement {
 
     truthy(value) { return value === true || value === 1 || value === '1'; }
 
+    /** A country's name from the list the server gave for this method. */
     countryName(code) {
-        const known = FalakCheckout.COUNTRY_NAMES[code];
-        return known ? known[this.isRtl ? 1 : 0] : code;
+        return this.state.countries.find(c => c.code === code)?.name || code;
+    }
+
+    /**
+     * A private courier's countries, named by the server (`country_options`,
+     * from the platform's countries table) instead of a list kept in the SDK.
+     * A platform too old to send them leaves the bare codes.
+     */
+    courierCountries(method) {
+        const options = Array.isArray(method.country_options) ? method.country_options : [];
+
+        return options.length
+            ? options.map(c => ({ code: c.code, name: (this.isRtl && c.name_ar) || c.name || c.code }))
+            : this.asList(method.countries).map(code => ({ code, name: code }));
     }
 
     /**
@@ -1261,8 +1266,7 @@ export default class FalakCheckout extends FalakElement {
         if (!method) { if (rerender) this.render(); return; }
 
         if (method.shipment_type === 'private_courier') {
-            const codes = this.asList(method.countries);
-            this.state.countries = codes.map(code => ({ code, name: this.countryName(code) }));
+            this.state.countries = this.courierCountries(method);
         } else {
             if (rerender) this.render();
             try {
@@ -1310,25 +1314,35 @@ export default class FalakCheckout extends FalakElement {
         const country = this.state.form.country;
         if (!method || !country) return;
 
-        if (method.shipment_type === 'private_courier') {
-            if (this.truthy(method.all_cities)) { this.state.cities = []; return; }
-            const excluded = this.asList(method.excluded_cities);
-            this.state.cities = this.asList(method.cities).filter(c => !excluded.includes(c)).map(c => ({ value: c, name: c }));
-            return;
-        }
+        /*
+         * A private courier's list comes from the server too. Built here it had
+         * no Arabic, ignored which country was chosen, and a courier serving
+         * all cities got no list at all — just a box to type into.
+         */
+        const isCourier = method.shipment_type === 'private_courier';
 
         this.state.citiesLoading = true;
         this.render();
 
         try {
-            const raw = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.cities(method.code, country));
-            const excluded = this.asList(method.excluded_cities);
+            const raw = await this.sdk.api.withoutNotifier(() => this.sdk.checkout.cities(
+                method.code, country, isCourier ? { courier_id: method.id } : {}
+            ));
+            // The server already applied a courier's exclusions, by normalised name.
+            const excluded = isCourier ? [] : this.asList(method.excluded_cities);
             this.state.cities = raw
                 .map(c => typeof c === 'string' ? { value: c, name: c } : { value: c.value ?? c.id ?? c.name, name: (this.isRtl && c.name_ar) || c.name || c.value })
                 .filter(c => !excluded.includes(c.value));
         } catch (error) {
             this.state.cities = [];
-            this.state.error = error?.message || this.trans('common.load_failed');
+            if (isCourier) {
+                // A platform without the courier list: the courier's own picks, as before.
+                if (!this.truthy(method.all_cities)) {
+                    this.state.cities = this.asList(method.cities).map(c => ({ value: c, name: c }));
+                }
+            } else {
+                this.state.error = error?.message || this.trans('common.load_failed');
+            }
         } finally {
             this.state.citiesLoading = false;
         }
@@ -1493,7 +1507,12 @@ export default class FalakCheckout extends FalakElement {
             phone: f.phone.trim(),
             email: f.email.trim(),
             address: f.street.trim(),
-            city: f.cityName || f.city,
+            /*
+             * A private courier's list value IS the city name, in English —
+             * what the courier stores and coverage is checked against. The
+             * shown name may be Arabic, which no courier list would match.
+             */
+            city: (this.state.method?.shipment_type === 'private_courier' && f.city) ? f.city : (f.cityName || f.city),
             country: f.country,
             postal_code: f.postal.trim(),
         };
