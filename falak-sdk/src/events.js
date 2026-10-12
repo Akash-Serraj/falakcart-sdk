@@ -50,6 +50,8 @@ class CartEvents extends Namespace {
             couponApplied: 'coupon.applied',
             couponRemoved: 'coupon.removed',
             couponFailed: 'coupon.failed',
+            // The server reduced or dropped lines the stock no longer covered.
+            stockAdjusted: 'stock.adjusted',
         };
         this.register();
     }

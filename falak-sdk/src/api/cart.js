@@ -243,6 +243,20 @@ export default class CartApi extends BaseApi {
 
             if (context.added) this.event.added({ ...context, response });
 
+            /*
+             * The server trims lines the stock no longer covers instead of
+             * refusing the whole save; the shopper has to hear about it even
+             * when the caller silenced the usual toasts (add-to-cart does, to
+             * show its own), so this one is raised here, not by the client.
+             */
+            const notice = response?.stock_notice;
+            if (notice) {
+                this.event.stockAdjusted({ ...notice, lines: this.lines, summary: this.summary });
+
+                const text = this.client.localised(notice['message-lang']) ?? notice.message;
+                if (text) this.client.notify.info(text);
+            }
+
             return { lines: this.lines, summary: this.summary };
         } catch (error) {
             this.event.failed(error, context.productId ?? null);
@@ -315,13 +329,16 @@ export default class CartApi extends BaseApi {
                  * the poster added only as a last fallback for the case where
                  * there are no photographs at all.
                  */
-                image: product.is_video_commerce
+                image: (product.is_video_commerce
                     ? (product.video_thumbnail_url ?? product.video_thumbnail_path ?? null)
                     : (product.images?.[0]?.url
                         ?? product.image_path
                         ?? product.video_thumbnail_url
                         ?? product.video_thumbnail_path
-                        ?? null),
+                        ?? null))
+                    // The platform's stand-in for a product with no photograph.
+                    ?? this.config.get('store.placeholders.product')
+                    ?? null,
                 /*
                  * The clip itself, for the one case the fallback cannot cover:
                  * a merchant who uploaded a video and never a poster for it.

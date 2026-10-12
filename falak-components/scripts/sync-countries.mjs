@@ -1,21 +1,28 @@
 /**
  * Mirrors the platform's country list into the components package.
  *
- *   node packages/falak-components/scripts/sync-countries.mjs
+ *   node falak-components/scripts/sync-countries.mjs [path/to/countries.ts]
  *
- * frontend/src/utils/countries.ts is the canonical dataset (the admin's phone
- * fields and config/countries.php are already derived from it). The storefront
- * components cannot import from the admin build, so the parts a storefront
- * needs — code, dial code, English and Arabic names — are copied into
- * src/lib/countries.js in the same order: KSA first, then GCC, then the Arab
- * League, then the rest of the world. Re-run after editing the source file.
+ * The platform's frontend/src/utils/countries.ts is the canonical dataset
+ * (the admin's phone fields and config/countries.php are already derived from
+ * it). The storefront components cannot import from the admin build, so the
+ * parts a storefront needs — code, dial code, English and Arabic names — are
+ * copied into src/lib/countries.js in the same order: KSA first, then GCC,
+ * then the Arab League, then the rest of the world. Re-run after editing the
+ * source file.
+ *
+ * The SDK lives in its own repository now, so the source is looked for in a
+ * `falakcart` checkout beside this one; pass the file's path to read it from
+ * anywhere else.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const source = resolve(here, '../../../frontend/src/utils/countries.ts');
+const source = process.argv[2]
+    ? resolve(process.cwd(), process.argv[2])
+    : resolve(here, '../../../falakcart/frontend/src/utils/countries.ts');
 const target = resolve(here, '../src/lib/countries.js');
 
 const ts = readFileSync(source, 'utf8');

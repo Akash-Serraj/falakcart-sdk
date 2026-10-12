@@ -151,6 +151,9 @@ export default class FalakProductCard extends FalakElement {
             || product.image
             || product.images?.[0]?.url
             || product.images?.[0]?.image_path
+            // The platform's stand-in for a product with no photograph, so a
+            // card never renders as an empty box (store.placeholders.product).
+            || this.sdk.config.get('store.placeholders.product')
             || null;
 
         return {
