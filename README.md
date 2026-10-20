@@ -45,17 +45,35 @@ local changes in a store instead:
 
 ## Releasing
 
+Production (`@falakcart`) is published by hand from a clean `main`, signed in to
+npm as the `falakcart` org owner. The test org (`@test_falakcart`) is where a
+version is tried on staging first.
+
 ```bash
-npm run version:bump -- patch                               # or minor | major | 1.2.0-beta.1 (both packages)
-git commit -am "release: v1.0.2" && git tag v1.0.2
-npm run release:publish -- --scope=test_falakcart --otp=…   # test org first
-npm run release:publish -- --scope=falakcart --otp=…        # production
+# 1. Try it on staging: a prerelease in the test org (manually, or push the tag
+#    and let the Release workflow publish it)
+npm run version:bump -- 1.1.0-beta.1
+git commit -am "release: v1.1.0-beta.1" && git tag v1.1.0-beta.1
+npm run release:publish -- --scope=test_falakcart --otp=…
+#    staging .env: FALAK_SDK_NPM_SCOPE=test_falakcart, FALAK_SDK_NPM_VERSION=1.1.0-beta.1
+
+# 2. Ship it: the final version, to production
+npm run version:bump -- 1.1.0
+git commit -am "release: v1.1.0" && git tag v1.1.0
+npm run release:publish -- --scope=falakcart --dry-run
+npm run release:publish -- --scope=falakcart --otp=…
 git push --follow-tags
 ```
+
+The two orgs have separate version histories. The test org already holds
+1.0.0–1.0.2 from before the production launch, so **try new versions there as
+prereleases** (`x.y.z-beta.n`) and never reuse a number that is already there.
 
 Then, in the platform, raise the pinned version (`FALAK_SDK_NPM_VERSION`, or
 the default in `config/theme-context.php`) and deploy. **Stores only change
 when the platform's pin changes**, never just because something was published.
+A bad release is fixed with the next patch and a raised pin, never by
+unpublishing: the CDN keeps serving whatever a pin names.
 
 The source packages are named `@falakcart/*` and are `private: true`, so an
 `npm publish` inside a package folder is refused. `scripts/release.mjs` builds,
@@ -79,12 +97,11 @@ uploading, so you can inspect them.
 
 ### Releasing from GitHub Actions
 
-`.github/workflows/release.yml` publishes when a `v*` tag is pushed. It needs
-two settings in the GitHub repository:
-
-- the secret **`NPM_TOKEN`**: an npm *granular access token* with read and
-  write access to the scope and **"bypass two-factor authentication"** ticked
-- the variable **`NPM_SCOPE`**: `test_falakcart` or `falakcart`
+`.github/workflows/release.yml` publishes to **the test org only** when a `v*`
+tag is pushed. Production is never published from CI, so a pushed tag cannot
+reach live stores. It needs one repository secret, **`NPM_TOKEN`**: an npm
+*granular access token* limited to `@test_falakcart`, with read and write
+access and **"bypass two-factor authentication"** ticked.
 
 ## What is on npm, and why
 
