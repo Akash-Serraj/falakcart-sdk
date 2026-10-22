@@ -1,8 +1,10 @@
 name: Release
 
-# Push a tag such as v1.0.2 (after `npm run version:bump`) to publish.
-# Needs the NPM_TOKEN secret (granular token, "bypass 2FA") and the
-# NPM_SCOPE variable (test_falakcart or falakcart) in the repository settings.
+# Push a tag such as v1.1.0-beta.1 (after `npm run version:bump`) to publish
+# to the TEST org. Production (@falakcart) is published by hand with a 2FA
+# code (README, "Releasing"), so a pushed tag can never reach live stores.
+# Needs the NPM_TOKEN secret: a granular token for @test_falakcart only, with
+# "bypass two-factor authentication" ticked.
 
 on:
   push:
@@ -28,6 +30,6 @@ jobs:
             echo "Tag $GITHUB_REF_NAME does not match package version $version"; exit 1
           fi
 
-      - run: npm run release:publish -- --scope=${{ vars.NPM_SCOPE }}
+      - run: npm run release:publish -- --scope=test_falakcart
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,8 +1,9 @@
 {
     "name": "@falakcart/sdk",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "description": "FalakCart storefront SDK — typed access to the window.falak runtime the platform injects into every storefront.",
     "license": "UNLICENSED",
+    "author": "Falak Cart",
     "private": true,
     "type": "module",
     "main": "./npm/index.js",
@@ -32,7 +33,10 @@
         "ecommerce",
         "themes"
     ],
-    "homepage": "https://falakcart.sa",
+    "homepage": "https://falakcart.com/docs",
+    "bugs": {
+        "url": "https://falakcart.com/support"
+    },
     "scripts": {
         "build": "vite build",
         "watch": "vite build --watch --mode development",
