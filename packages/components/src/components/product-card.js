@@ -16,6 +16,45 @@ import FalakElement from '../base.js';
 export default class FalakProductCard extends FalakElement {
     static observedAttributes = ['product', 'product-id', 'hide-offer', 'show-offer'];
 
+    /**
+     * Stock read off a raw API row, for a payload that carries no resolved
+     * `in_stock`. Mirrors the server's StockPolicy::inStock(): a product WITH
+     * variants is decided by its variants alone — checkout stock-checks the
+     * chosen variant, and the product-level number may hold anything (a
+     * product at 10 whose variants were all sold out used to read "in
+     * stock"). A null/absent quantity is unlimited, not zero.
+     */
+    static rawInStock(product) {
+        if (product.allow_backorders) return true;
+
+        const variations = Array.isArray(product.variations) ? product.variations : [];
+        const unlimitedOrSome = q => q === null || q === undefined || Number(q) > 0;
+
+        return variations.length
+            ? variations.some(v => unlimitedOrSome(v.quantity))
+            : unlimitedOrSome(product.quantity);
+    }
+
+    /**
+     * Units left, for the special card's "X left" line: the variants' total
+     * on a variant product (never its product-level number), the product's
+     * own count otherwise. Null whenever it is not a finite count — unlimited,
+     * or a variant product whose variations were not sent.
+     */
+    static remainingStock(product) {
+        const finite = q => q !== null && q !== undefined && Number.isFinite(Number(q));
+        const variations = Array.isArray(product.variations) ? product.variations : [];
+
+        if (variations.length) {
+            if (!variations.every(v => finite(v.quantity))) return null;
+            return variations.reduce((sum, v) => sum + Math.max(0, Number(v.quantity)), 0);
+        }
+
+        if (product.has_variations) return null;
+
+        return finite(product.quantity) ? Number(product.quantity) : null;
+    }
+
     get product() {
         return this._product || this.jsonAttr('product', null);
     }
@@ -178,12 +217,11 @@ export default class FalakProductCard extends FalakElement {
              * (the relation is only loaded on the product page) while
              * has_variations is true, so the array must not get the last word.
              */
-            // In stock while the product OR any of its variants is (checkout
-            // stock-checks the chosen variant, not the product-level number).
+            // A variant product is in stock while any VARIANT is — its own
+            // product-level quantity is ignored. See rawInStock().
             inStock: product.in_stock !== undefined
                 ? !!product.in_stock
-                : (product.quantity === null || Number(product.quantity) > 0 || !!product.allow_backorders
-                    || (Array.isArray(product.variations) && product.variations.some(v => v.quantity === null || v.quantity === undefined || Number(v.quantity) > 0))),
+                : FalakProductCard.rawInStock(product),
             hasVariations: product.has_variations !== undefined
                 ? !!product.has_variations
                 : (Array.isArray(product.variations) && product.variations.length > 0),
@@ -409,9 +447,9 @@ export default class FalakProductCard extends FalakElement {
          * says the same thing without inventing a "full stock" total to draw
          * the circle against.
          */
-        const remaining = this.isSpecial && product.inStock
-            && Number.isFinite(Number(raw.quantity)) && Number(raw.quantity) > 0
-            ? this.trans('product.remaining', { count: this.sdk.number(raw.quantity) })
+        const left = FalakProductCard.remainingStock(raw);
+        const remaining = this.isSpecial && product.inStock && left !== null && left > 0
+            ? this.trans('product.remaining', { count: this.sdk.number(left) })
             : '';
 
         this.innerHTML = `

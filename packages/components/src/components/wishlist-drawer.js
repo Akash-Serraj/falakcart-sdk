@@ -167,8 +167,14 @@ export default class FalakWishlistDrawer extends FalakElement {
             price: onSale ? discount : list,
             compareAt: onSale ? list : null,
             currency: product.currency || null,
-            inStock: product.quantity === null || product.quantity === undefined || Number(product.quantity) > 0 || !!product.allow_backorders
-                || (Array.isArray(product.variations) && product.variations.some(v => v.quantity === null || v.quantity === undefined || Number(v.quantity) > 0)),
+            // The card's rule: the server's resolved flag when sent, else a
+            // variant product is decided by its variants alone — its own
+            // product-level quantity says nothing about what can be bought.
+            inStock: product.in_stock !== undefined
+                ? !!product.in_stock
+                : (!!product.allow_backorders || (Array.isArray(product.variations) && product.variations.length
+                    ? product.variations.some(v => v.quantity === null || v.quantity === undefined || Number(v.quantity) > 0)
+                    : (product.quantity === null || product.quantity === undefined || Number(product.quantity) > 0))),
             hasVariations: Array.isArray(product.variations) && product.variations.length > 0,
         };
     }

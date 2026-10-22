@@ -353,7 +353,9 @@ export default class CartApi extends BaseApi {
                 originalPrice: Number(line.original_price || line.unit_price || 0),
                 total: Number(line.total_price || 0),
                 discount: Number(line.discount_amount || 0),
-                stock: product.quantity ?? null,
+                // A variant line is limited by the VARIANT it holds; the
+                // product-level number is not what was put in the cart.
+                stock: (line.variation_id ? line.selected_variation?.quantity : product.quantity) ?? null,
                 productType: product.product_type ?? null,
                 /*
                  * Whether this line needs a courier — the rule the server applies
