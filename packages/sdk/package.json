@@ -1,6 +1,6 @@
 {
     "name": "@falakcart/sdk",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "FalakCart storefront SDK — typed access to the window.falak runtime the platform injects into every storefront.",
     "license": "UNLICENSED",
     "author": "Falak Cart",
